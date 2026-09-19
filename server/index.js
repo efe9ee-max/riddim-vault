@@ -3,36 +3,70 @@ const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const { v4: uuidv4 } = require('uuid');
+const cloudinary = require('cloudinary').v2;
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// ── Cloudinary Yapılandırması ──────────────────────────────────────────────────
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'lwebjh6i',
+  api_key: process.env.CLOUDINARY_API_KEY || '255171112575133',
+  api_secret: process.env.CLOUDINARY_API_SECRET || '8wSoZClx36sBCPDCKC0Znoeew7Q'
+});
+
 // ── Dizinleri oluştur ─────────────────────────────────────────────────────────
-const UPLOADS_AUDIO = path.join(__dirname, 'uploads', 'audio');
-const UPLOADS_COVERS = path.join(__dirname, 'uploads', 'covers');
+const UPLOADS_TEMP = path.join(__dirname, 'uploads', 'temp');
 const DATA_FILE = path.join(__dirname, 'data', 'tracks.json');
 
-[UPLOADS_AUDIO, UPLOADS_COVERS, path.join(__dirname, 'data')].forEach(dir => {
+[UPLOADS_TEMP, path.join(__dirname, 'data')].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
 if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, '[]', 'utf8');
+
+// ── Buluttan Veritabanını Otomatik İndir / Senkronize Et ───────────────────────
+async function syncDatabaseFromCloud() {
+  try {
+    const cloudDbUrl = cloudinary.url('nammu_tracks_db.json', { resource_type: 'raw' });
+    https.get(cloudDbUrl, (res) => {
+      if (res.statusCode === 200) {
+        let raw = '';
+        res.on('data', chunk => raw += chunk);
+        res.on('end', () => {
+          try {
+            const remoteTracks = JSON.parse(raw);
+            if (Array.isArray(remoteTracks) && remoteTracks.length > 0) {
+              fs.writeFileSync(DATA_FILE, JSON.stringify(remoteTracks, null, 2), 'utf8');
+              console.log(`☁️ Cloudinary veritabanı senkronize edildi: ${remoteTracks.length} parça aktif.`);
+            }
+          } catch (e) {
+            console.warn('Remote tracks parse error:', e.message);
+          }
+        });
+      }
+    }).on('error', (e) => console.warn('Cloud sync net error:', e.message));
+  } catch (err) {
+    console.warn('Cloudinary sync check:', err.message);
+  }
+}
+
+// Sunucu açılır açılmaz bulutu kontrol et
+syncDatabaseFromCloud();
 
 // ── Middleware ─────────────────────────────────────────────────────────────────
 app.use(cors());
 app.use(express.json());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// ── Admin Şifresi (değiştirin) ─────────────────────────────────────────────────
+// ── Admin Şifresi ──────────────────────────────────────────────────────────────
 const ADMIN_PIN = process.env.ADMIN_PIN || 'riddim140';
 
-// ── Multer Ayarları ────────────────────────────────────────────────────────────
-const audioStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if (file.fieldname === 'audio') cb(null, UPLOADS_AUDIO);
-    else cb(null, UPLOADS_COVERS);
-  },
+// ── Multer Geçici Yükleme Ayarları ─────────────────────────────────────────────
+const tempStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, UPLOADS_TEMP),
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `${uuidv4()}${ext}`);
@@ -43,18 +77,31 @@ const allowedAudio = ['audio/mpeg', 'audio/wav', 'audio/flac', 'audio/ogg', 'aud
 const allowedImage = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
 const upload = multer({
-  storage: audioStorage,
+  storage: tempStorage,
   limits: { fileSize: 200 * 1024 * 1024 }, // 200MB
   fileFilter: (req, file, cb) => {
-    if (file.fieldname === 'audio' && allowedAudio.includes(file.mimetype)) return cb(null, true);
-    if (file.fieldname === 'cover' && allowedImage.includes(file.mimetype)) return cb(null, true);
+    if (file.fieldname === 'audio' && (allowedAudio.includes(file.mimetype) || file.originalname.match(/\.(mp3|wav|flac|ogg)$/i))) {
+      return cb(null, true);
+    }
+    if (file.fieldname === 'cover' && (allowedImage.includes(file.mimetype) || file.originalname.match(/\.(jpg|jpeg|png|webp|gif)$/i))) {
+      return cb(null, true);
+    }
     cb(new Error(`Desteklenmeyen dosya türü: ${file.mimetype}`));
   }
 });
 
 // ── Yardımcı Fonksiyonlar ─────────────────────────────────────────────────────
-const readTracks = () => JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-const writeTracks = (tracks) => fs.writeFileSync(DATA_FILE, JSON.stringify(tracks, null, 2), 'utf8');
+const readTracks = () => {
+  try {
+    return JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+  } catch {
+    return [];
+  }
+};
+
+const writeTracks = (tracks) => {
+  fs.writeFileSync(DATA_FILE, JSON.stringify(tracks, null, 2), 'utf8');
+};
 
 // Admin doğrulama middleware
 const requireAdmin = (req, res, next) => {
@@ -78,7 +125,7 @@ app.post('/api/admin/verify', (req, res) => {
   res.status(401).json({ success: false, error: 'Geçersiz PIN.' });
 });
 
-// POST /api/tracks → Yeni parça yükle (admin)
+// POST /api/tracks → Yeni parça yükle (Cloudinary Kalıcı Yükleme)
 app.post(
   '/api/tracks',
   requireAdmin,
@@ -86,7 +133,7 @@ app.post(
     { name: 'audio', maxCount: 1 },
     { name: 'cover', maxCount: 1 }
   ]),
-  (req, res) => {
+  async (req, res) => {
     try {
       const { title, artist, bpm, key, genre, tags, description } = req.body;
 
@@ -97,28 +144,61 @@ app.post(
       const audioFile = req.files.audio[0];
       const coverFile = req.files?.cover?.[0];
 
+      // 1. Sesi Cloudinary'e yükle (resource_type: video -> audio/wav)
+      console.log(`☁️ Cloudinary'e ses yukleniyor: ${audioFile.originalname}`);
+      const audioResult = await cloudinary.uploader.upload(audioFile.path, {
+        resource_type: 'video',
+        folder: 'nammu/audio'
+      });
+
+      // 2. Varsa kapağı Cloudinary'e yükle
+      let coverUrl = null;
+      if (coverFile) {
+        console.log(`☁️ Cloudinary'e kapak yukleniyor: ${coverFile.originalname}`);
+        const coverResult = await cloudinary.uploader.upload(coverFile.path, {
+          resource_type: 'image',
+          folder: 'nammu/covers'
+        });
+        coverUrl = coverResult.secure_url;
+      }
+
+      // Geçici yerel dosyaları temizle
+      try { fs.unlinkSync(audioFile.path); } catch (e) {}
+      if (coverFile) { try { fs.unlinkSync(coverFile.path); } catch (e) {} }
+
+      // 3. Parça nesnesini oluştur
       const newTrack = {
         id: uuidv4(),
         title: title.trim(),
-        artist: artist?.trim() || 'Anonim',
+        artist: artist?.trim() || 'Nammu',
         bpm: bpm ? parseInt(bpm) : null,
         key: key?.trim() || null,
         genre: genre?.trim() || 'Riddim',
         tags: tags ? tags.split(',').map(t => t.trim()).filter(Boolean) : [],
         description: description?.trim() || '',
-        audioUrl: `/uploads/audio/${audioFile.filename}`,
+        audioUrl: audioResult.secure_url,
         audioSize: audioFile.size,
-        coverUrl: coverFile ? `/uploads/covers/${coverFile.filename}` : null,
+        coverUrl: coverUrl,
         createdAt: new Date().toISOString(),
         plays: 0
       };
 
+      // 4. Yerel tracks.json'a ekle
       const tracks = readTracks();
       tracks.unshift(newTrack);
       writeTracks(tracks);
 
+      // 5. Veritabanını Cloudinary bulutuna yükle (böylece Render sıfırlansa da kalıcı kalır!)
+      cloudinary.uploader.upload(DATA_FILE, {
+        resource_type: 'raw',
+        public_id: 'nammu_tracks_db.json',
+        overwrite: true
+      }).catch(err => console.error('Cloud DB backup error:', err.message));
+
+      console.log(`✅ Parça Cloudinary bulutuna basariyla kilitlendi: "${newTrack.title}"`);
       res.status(201).json(newTrack);
     } catch (err) {
+      console.error('Upload error:', err);
       res.status(500).json({ error: err.message });
     }
   }
@@ -134,23 +214,22 @@ app.patch('/api/tracks/:id/play', (req, res) => {
   res.json({ plays: track.plays });
 });
 
-// DELETE /api/tracks/:id → Parça sil (admin)
-app.delete('/api/tracks/:id', requireAdmin, (req, res) => {
+// DELETE /api/tracks/:id → Parça sil
+app.delete('/api/tracks/:id', requireAdmin, async (req, res) => {
   const tracks = readTracks();
   const idx = tracks.findIndex(t => t.id === req.params.id);
   if (idx === -1) return res.status(404).json({ error: 'Parça bulunamadı.' });
 
-  const track = tracks[idx];
-
-  // Dosyaları sil
-  const audioPath = path.join(__dirname, 'uploads', 'audio', path.basename(track.audioUrl));
-  const coverPath = track.coverUrl ? path.join(__dirname, 'uploads', 'covers', path.basename(track.coverUrl)) : null;
-
-  if (fs.existsSync(audioPath)) fs.unlinkSync(audioPath);
-  if (coverPath && fs.existsSync(coverPath)) fs.unlinkSync(coverPath);
-
   tracks.splice(idx, 1);
   writeTracks(tracks);
+
+  // Cloudinary veritabanını güncelle
+  cloudinary.uploader.upload(DATA_FILE, {
+    resource_type: 'raw',
+    public_id: 'nammu_tracks_db.json',
+    overwrite: true
+  }).catch(err => console.error('Cloud DB delete sync error:', err.message));
+
   res.json({ success: true });
 });
 
@@ -158,7 +237,6 @@ app.delete('/api/tracks/:id', requireAdmin, (req, res) => {
 const distPath = path.join(__dirname, '..', 'dist');
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
-  // SPA — tüm diğer istekleri index.html'e yönlendir
   app.get('*', (req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
@@ -171,6 +249,7 @@ app.use((err, req, res, next) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`\n🎵 Riddim Vault API → http://localhost:${PORT}`);
-  console.log(`🔐 Admin PIN: ${ADMIN_PIN}\n`);
+  console.log(`\n🎵 NAMMU ABYSS API → http://localhost:${PORT}`);
+  console.log(`🔐 Admin PIN: ${ADMIN_PIN}`);
+  console.log(`☁️ Cloudinary Bulut Depolama: AKTİF (25 GB Kalıcı)\n`);
 });
