@@ -11,7 +11,7 @@ export default function App() {
   const [tracks, setTracks] = useState([])
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
-  const { currentTrack } = useAudio()
+  const { currentTrack, updateCurrentTrack } = useAudio()
 
   useEffect(() => {
     if (currentTrack) {
@@ -46,7 +46,10 @@ export default function App() {
 
   const handleUploaded = useCallback((t) => setTracks(p => [t, ...p]), [])
   const handleDelete   = useCallback((id) => setTracks(p => p.filter(t => t.id !== id)), [])
-  const handleUpdate   = useCallback((updated) => setTracks(p => p.map(t => t.id === updated.id ? updated : t)), [])
+  const handleUpdate   = useCallback((updated) => {
+    setTracks(p => p.map(t => t.id === updated.id ? updated : t))
+    updateCurrentTrack?.(updated)
+  }, [updateCurrentTrack])
 
   return (
     <div className="min-h-screen bg-void relative overflow-x-hidden">

@@ -212,6 +212,16 @@ export function AudioProvider({ children }) {
     })
   }, [])
 
+  // ── Track Güncelleme (Düzenleme sonrası canlı state senkronu) ────────────────
+  const updateCurrentTrack = useCallback((updatedTrack) => {
+    setCurrentTrack(prev => {
+      if (prev && String(prev.id) === String(updatedTrack.id)) {
+        return { ...prev, ...updatedTrack }
+      }
+      return prev
+    })
+  }, [])
+
   const value = {
     currentTrack,
     isPlaying,
@@ -230,6 +240,7 @@ export function AudioProvider({ children }) {
     setVolume,
     toggleBassBoost,
     toggleLoop,
+    updateCurrentTrack,
   }
 
   return (

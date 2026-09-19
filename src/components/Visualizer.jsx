@@ -3,7 +3,7 @@ import { useAudio } from '../context/AudioContext'
 
 export default function Visualizer() {
   const canvasRef = useRef(null)
-  const { analyserData, isPlaying } = useAudio()
+  const { analyserData, isPlaying, currentTrack } = useAudio()
 
   const timeRef = useRef(0)
   const animRef = useRef(null)
@@ -11,6 +11,11 @@ export default function Visualizer() {
   const starsRef = useRef([])
   const smoothedDataRef = useRef(new Float32Array(64))
   const lastBassRef = useRef(0)
+  const currentTrackRef = useRef(currentTrack)
+
+  useEffect(() => {
+    currentTrackRef.current = currentTrack
+  }, [currentTrack])
 
   // 3D Siber Parçacıklar (Derinlik hissi veren hız tozları)
   useEffect(() => {
@@ -107,7 +112,7 @@ export default function Visualizer() {
       drawSolidEqualizerWalls(ctx, W, H, vpX, vpY, smoothedDataRef.current, bassEnergy, trebleEnergy, isPlaying)
 
       // 4. Yan Siber HUD Panelleri ve Frekans Çizelgeleri (Referans görseldeki gibi)
-      drawHolographicHud(ctx, W, H, vpX, vpY, smoothedDataRef.current, bassEnergy)
+      drawHolographicHud(ctx, W, H, vpX, vpY, smoothedDataRef.current, bassEnergy, currentTrackRef.current, isPlaying)
 
       // 5. Üst Lazer Rayları (Neon Yeşil + Akkor Çekirdek)
       drawIntenseLaserRails(ctx, W, H, vpX, vpY, bassEnergy)
@@ -417,7 +422,7 @@ function drawIntenseLaserRails(ctx, W, H, vpX, vpY, bass) {
 }
 
 // ── 5. HOLOGRAFİK SİBER HUD & FREKANS ÇİZELGELERİ (REFERANS GÖRSELDEKİ DETAYLAR) ─
-function drawHolographicHud(ctx, W, H, vpX, vpY, data, bass) {
+function drawHolographicHud(ctx, W, H, vpX, vpY, data, bass, currentTrack, isPlaying) {
   ctx.save()
 
   // SAĞ ÜST HUD PANELLERİ (Mini Spektrum Grafiği & Siber Veriler)
@@ -445,11 +450,15 @@ function drawHolographicHud(ctx, W, H, vpX, vpY, data, bass) {
     ctx.fillRect(hudRightX + 12 + i * 9.5, hudRightY + 58 - bh, 6.5, bh)
   }
 
-  // Siber Metinler
+  // Siber Metinler: Çalan parçanın GERÇEK BPM değeri dinamik gösterilir
+  const trackBpm = currentTrack?.bpm
+  const hasBpm = trackBpm !== null && trackBpm !== undefined && String(trackBpm).trim() !== ''
+  const displayBpm = hasBpm ? `${trackBpm} BPM` : (isPlaying ? 'AUDIO SYNC' : 'STANDBY')
+
   ctx.fillStyle = 'rgba(0, 245, 255, 0.85)'
   ctx.font = '9px monospace'
   ctx.fillText('FREQ OSC // CH-R', hudRightX + 12, hudRightY + 18)
-  ctx.fillText(`SUB ${Math.round(bass * 100)}% // 140BPM`, hudRightX + 12, hudRightY + 70)
+  ctx.fillText(`SUB ${Math.round(bass * 100)}% // ${displayBpm}`, hudRightX + 12, hudRightY + 70)
 
   // SOL ÜST HUD PANELLERİ (Terminal Kod Akışı)
   const hudLeftX = 30
@@ -466,10 +475,12 @@ function drawHolographicHud(ctx, W, H, vpX, vpY, data, bass) {
   ctx.moveTo(hudLeftX + 150, hudLeftY + 12); ctx.lineTo(hudLeftX + 150, hudLeftY); ctx.lineTo(hudLeftX + 136, hudLeftY)
   ctx.stroke()
 
+  const statusSuffix = hasBpm ? `[${trackBpm} BPM]` : (isPlaying ? '[STREAM]' : '[IDLE]')
+
   ctx.fillStyle = 'rgba(0, 255, 136, 0.8)'
   ctx.font = '9px monospace'
   ctx.fillText('NAMMU ABYSS SYSTEM', hudLeftX + 12, hudLeftY + 18)
-  ctx.fillText('STATUS: LOCKED [140.0]', hudLeftX + 12, hudLeftY + 34)
+  ctx.fillText(`STATUS: LOCKED ${statusSuffix}`, hudLeftX + 12, hudLeftY + 34)
   ctx.fillText('GRID: 56x32 MESH ACTIVE', hudLeftX + 12, hudLeftY + 48)
   ctx.fillText('TUNNEL: 3D RESONANCE', hudLeftX + 12, hudLeftY + 62)
 
