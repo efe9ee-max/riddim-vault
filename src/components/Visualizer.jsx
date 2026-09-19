@@ -278,41 +278,33 @@ function drawCenterDisc(ctx, cx, cy, scale, rotation, coverImg, bassEnergy, isPl
   ctx.closePath()
   ctx.clip()
 
-  if (coverImg) {
-    // 3A. Çalan parçanın kapak resmi plak gibi döner
-    ctx.drawImage(coverImg, -radius, -radius, radius * 2, radius * 2)
-    
-    // Üzerine hafif karanlık siber filtre
-    ctx.fillStyle = 'rgba(7, 8, 13, 0.25)'
-    ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
-  } else {
-    // 3B. Kapak yoksa: Fütüristik Gece Mavisi / Siyah Vinil Plak
-    const vinylGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
-    vinylGrad.addColorStop(0, '#121324')
-    vinylGrad.addColorStop(0.7, '#07080d')
-    vinylGrad.addColorStop(1, '#020205')
-    ctx.fillStyle = vinylGrad
-    ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
+  // Fütüristik Gece Mavisi / Siyah Vinil Plak
+  const vinylGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
+  vinylGrad.addColorStop(0, '#101222')
+  vinylGrad.addColorStop(0.65, '#07080f')
+  vinylGrad.addColorStop(1, '#020204')
+  ctx.fillStyle = vinylGrad
+  ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
 
-    // Vinil plak yivleri (Grooves)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)'
-    ctx.lineWidth = 1
-    for (let gr = 18; gr < radius; gr += 8) {
-      ctx.beginPath()
-      ctx.arc(0, 0, gr, 0, Math.PI * 2)
-      ctx.stroke()
-    }
-
-    // Merkezde neon NAMMU logosu
-    ctx.fillStyle = '#22c55e'
-    ctx.font = `900 ${Math.round(13 * scale)}px Orbitron, monospace`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.shadowBlur = 12
-    ctx.shadowColor = 'rgba(34, 197, 94, 0.9)'
-    ctx.fillText('NAMMU', 0, 0)
-    ctx.shadowBlur = 0
+  // Vinil plak yivleri (İnce concentric grooves)
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)'
+  ctx.lineWidth = 1
+  for (let gr = 14; gr < radius - 2; gr += 7) {
+    ctx.beginPath()
+    ctx.arc(0, 0, gr, 0, Math.PI * 2)
+    ctx.stroke()
   }
+
+  // Merkezde basla parlayan neon NAMMU logosu
+  const textGlow = 10 + bassEnergy * 25
+  ctx.fillStyle = bassEnergy > 0.5 ? '#ffffff' : '#22c55e'
+  ctx.font = `900 ${Math.round(13.5 * scale)}px Orbitron, monospace`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.shadowBlur = textGlow
+  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.95)' : 'rgba(168, 85, 247, 0.85)'
+  ctx.fillText('NAMMU', 0, 0)
+  ctx.shadowBlur = 0
 
   // 4. Plak orta göbek deliği & Parlak Dış Çember
   ctx.restore() // Klip'i kaldır
