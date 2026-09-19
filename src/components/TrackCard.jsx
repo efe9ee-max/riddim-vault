@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useAudio } from '../context/AudioContext'
 import { Play, Pause, Download, Trash2, Music } from 'lucide-react'
 import { TAG_COLORS } from '../data/demoTracks'
@@ -20,6 +20,7 @@ function formatSize(bytes) {
 }
 
 export default function TrackCard({ track, isAdmin, onDelete }) {
+  const [imgError, setImgError] = useState(false)
   const { playTrack, currentTrack, isPlaying } = useAudio()
   const isActive = currentTrack?.id === track.id
   const isCurrentPlaying = isActive && isPlaying
@@ -67,15 +68,17 @@ export default function TrackCard({ track, isAdmin, onDelete }) {
     >
       {/* Cover */}
       <div className="relative aspect-square bg-void-3 overflow-hidden">
-        {track.coverUrl ? (
+        {track.coverUrl && !imgError ? (
           <img
             src={track.coverUrl}
             alt={track.title}
+            onError={() => setImgError(true)}
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
           />
         ) : (
-          <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-void-3 to-surface-2">
-            <Music size={40} className="text-neon/20" />
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-void-3 to-surface-2 border-b border-border/30">
+            <Music size={44} className="text-neon/25" />
+            <span className="text-[10px] font-mono text-slate-600 mt-2 tracking-wider">NO COVER</span>
           </div>
         )}
 
