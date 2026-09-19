@@ -1,36 +1,27 @@
-import React, { useEffect, useRef, useCallback } from 'react'
+import React, { useEffect, useRef } from 'react'
 import { useAudio } from '../context/AudioContext'
 
 export default function Visualizer() {
   const canvasRef = useRef(null)
   const { analyserData, isPlaying } = useAudio()
 
-  const pulseScaleRef = useRef(1)
-  const smoothedDataRef = useRef(new Float32Array(128))
-  const shardsRef = useRef([])
+  const timeRef = useRef(0)
   const animRef = useRef(null)
-  const angleOffsetRef = useRef(0)
+  const shakeRef = useRef({ x: 0, y: 0 })
+  const starsRef = useRef([])
+  const smoothedDataRef = useRef(new Float32Array(64))
+  const lastBassRef = useRef(0)
 
-  // Geometrik kristal / prizma parçacıkları (Referans görseldeki gibi Chromatic Aberration'lı cam kırıkları)
-  const initShards = useCallback(() => {
-    shardsRef.current = Array.from({ length: 45 }, () => ({
-      x: 0,
-      y: 0,
-      angle: Math.random() * Math.PI * 2,
-      dist: Math.random() * 340 + 75,
-      speed: Math.random() * 0.6 + 0.25,
-      rot: Math.random() * Math.PI * 2,
-      rotSpeed: (Math.random() - 0.5) * 0.03,
-      size: Math.random() * 7 + 4,
-      shape: Math.floor(Math.random() * 3), // 0: üçgen, 1: eşkenar dörtgen, 2: yamuk
-      alpha: Math.random() * 0.6 + 0.2,
-      side: Math.random() > 0.5 ? 'cyan' : 'magenta'
+  // Tünelden ileriye doğru uçuşan yıldız/parçacık sistemi
+  useEffect(() => {
+    starsRef.current = Array.from({ length: 90 }, () => ({
+      x: (Math.random() - 0.5) * 800,
+      y: (Math.random() - 0.5) * 500,
+      z: Math.random() * 1000 + 50,
+      sz: Math.random() * 2 + 0.8,
+      color: Math.random() < 0.4 ? '#00f0ff' : Math.random() < 0.7 ? '#a855f7' : '#00ff66'
     }))
   }, [])
-
-  useEffect(() => {
-    initShards()
-  }, [initShards])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -43,54 +34,84 @@ export default function Visualizer() {
       const cx = W / 2
       const cy = H / 2
 
-      angleOffsetRef.current += 0.0015
-
-      // 1. Frekans Analizi & Yumuşatma (Ultra Akıcı Barlar)
+      // 1. Frekans Analizi & Yumuşatma
       let bassEnergy = 0
+      let midEnergy = 0
+      let highEnergy = 0
+
       if (analyserData && isPlaying) {
         let bSum = 0
-        const bCount = Math.min(10, analyserData.length)
-        for (let i = 0; i < bCount; i++) bSum += analyserData[i]
-        bassEnergy = bSum / (bCount * 255)
+        for (let i = 0; i < 8; i++) bSum += analyserData[i]
+        bassEnergy = bSum / (8 * 255)
 
-        for (let i = 0; i < 128; i++) {
+        let mSum = 0
+        for (let i = 8; i < 32; i++) mSum += analyserData[i]
+        midEnergy = mSum / (24 * 255)
+
+        let hSum = 0
+        for (let i = 32; i < 64; i++) hSum += analyserData[i]
+        highEnergy = hSum / (32 * 255)
+
+        for (let i = 0; i < 64; i++) {
           const target = analyserData[i] || 0
-          // Yumuşak geçiş sönümlemesi
           if (target > smoothedDataRef.current[i]) {
-            smoothedDataRef.current[i] += (target - smoothedDataRef.current[i]) * 0.35
+            smoothedDataRef.current[i] += (target - smoothedDataRef.current[i]) * 0.4
           } else {
             smoothedDataRef.current[i] += (target - smoothedDataRef.current[i]) * 0.12
           }
         }
       } else {
-        // Müzik çalmıyorken hafif canlı bekleme dalgası
-        for (let i = 0; i < 128; i++) {
-          const idle = 12 + Math.sin(Date.now() * 0.0025 + i * 0.18) * 8
+        // Bekleme modu
+        for (let i = 0; i < 64; i++) {
+          const idle = 15 + Math.sin(timeRef.current * 2 + i * 0.2) * 10
           smoothedDataRef.current[i] += (idle - smoothedDataRef.current[i]) * 0.1
         }
       }
 
-      // 2. Sub/Bass Scale Pulse (Trap Nation / Monstercat Tarzı Zıplama)
-      const targetScale = isPlaying ? 1.0 + Math.pow(bassEnergy, 1.7) * 0.26 : 1.0
-      pulseScaleRef.current += (targetScale - pulseScaleRef.current) * 0.25
+      // Hız: Müzik çalarken basla birlikte ileriye akış hızlanır
+      const speed = isPlaying ? 3.5 + bassEnergy * 7 : 1.8
+      timeRef.current += speed * 0.015
+
+      // Kamera Shake (Ağır Kick vuruşlarında titreşim)
+      const bassDelta = bassEnergy - lastBassRef.current
+      if (isPlaying && bassEnergy > 0.62 && bassDelta > 0.12) {
+        shakeRef.current.x = (Math.random() - 0.5) * (bassEnergy * 9)
+        shakeRef.current.y = (Math.random() - 0.5) * (bassEnergy * 9)
+      } else {
+        shakeRef.current.x *= 0.8
+        shakeRef.current.y *= 0.8
+      }
+      lastBassRef.current = bassEnergy
 
       // ── ÇİZİM AŞAMALARI ──────────────────────────────────────────────────
 
-      // 1. Arka Plan (Derin Siber Uzay & Hafif Motion Blur İzi)
-      ctx.fillStyle = 'rgba(7, 8, 14, 0.86)'
+      // 1. Arka Plan: Gece Mavisi / Siber Kozmik Boşluk
+      ctx.fillStyle = '#050713'
       ctx.fillRect(0, 0, W, H)
 
-      // 2. Anamorfik Lens Flare (Yatay Işık Hüzmesi: Solda Cyan, Sağda Magenta)
-      drawAnamorphicFlare(ctx, cx, cy, W, bassEnergy, isPlaying)
+      ctx.save()
+      ctx.translate(shakeRef.current.x, shakeRef.current.y)
 
-      // 3. Chromatic Aberration'lı Geometrik Cam Kırıkları / Prizmalar
-      drawFloatingShards(ctx, cx, cy, shardsRef.current, bassEnergy, isPlaying)
+      // Merkez Kaçış Noktası (Vanishing Point)
+      const vpX = cx
+      const vpY = cy + 10
 
-      // 4. Dairesel Reaktif Çember Barları (360° Renkli Spektrum)
-      drawRadialSpectrumBars(ctx, cx, cy, smoothedDataRef.current, pulseScaleRef.current, bassEnergy, isPlaying)
+      // 2. İleriye Doğru Akan Hız Parçacıkları (Warp Stars)
+      drawWarpStars(ctx, vpX, vpY, starsRef.current, speed, bassEnergy)
 
-      // 5. Merkez "N" Logolu Madalyon / Çekirdek Rozet
-      drawCenterBadge(ctx, cx, cy, pulseScaleRef.current, bassEnergy)
+      // 3. Tavan Tel Izgarası (Ceiling Wireframe Grid)
+      drawCeilingGrid(ctx, W, H, vpX, vpY, timeRef.current)
+
+      // 4. Zemin Mesh Kick/Bass Kıvrımı (3D Dalgalanan Zemin Tel Izgarası)
+      drawTerrainMesh(ctx, W, H, vpX, vpY, timeRef.current, bassEnergy, isPlaying)
+
+      // 5. Yan Duvarlar (3D Perspektif Spektrum Barları - Sol: Neon Mor, Sağ: Lazer Yeşili)
+      drawSideEqualizerWalls(ctx, W, H, vpX, vpY, smoothedDataRef.current, bassEnergy, isPlaying)
+
+      // 6. Yan Lazer Işınları (Üst Duvar Neon Rayları)
+      drawLaserRails(ctx, W, H, vpX, vpY, bassEnergy)
+
+      ctx.restore()
 
       animRef.current = requestAnimationFrame(render)
     }
@@ -101,10 +122,10 @@ export default function Visualizer() {
 
   return (
     <div
-      className="relative w-full rounded-xl overflow-hidden shadow-2xl border border-border/40"
+      className="relative w-full rounded-xl overflow-hidden shadow-2xl border border-cyan/30"
       style={{
         height: '280px',
-        background: 'radial-gradient(ellipse at center, rgba(13,17,32,0.9) 0%, rgba(5,6,10,0.98) 75%)'
+        background: 'radial-gradient(ellipse at center, rgba(10,14,35,0.95) 0%, rgba(3,4,10,0.98) 85%)'
       }}
     >
       <canvas
@@ -118,272 +139,230 @@ export default function Visualizer() {
   )
 }
 
-// ── 1. ANAMORFİK LENS FLARE (YATAY IŞIK HÜZMESİ) ──────────────────────────────
-function drawAnamorphicFlare(ctx, cx, cy, W, bass, isPlaying) {
-  const intensity = isPlaying ? 0.25 + bass * 0.5 : 0.15
+// ── 1. ZEMİN MESH KICK/BASS KIVRIMI (3D PERSPEKTİF DALGALANAN TEL IZGARA) ──────
+function drawTerrainMesh(ctx, W, H, vpX, vpY, time, bass, isPlaying) {
+  const floorTop = vpY + 22
+  const floorBottom = H + 40
+  const cols = 26
+  const rows = 18
 
-  // Sol Cyan Işık Hüzmesi
-  const leftFlare = ctx.createLinearGradient(cx, cy, 0, cy)
-  leftFlare.addColorStop(0, `rgba(0, 240, 255, ${intensity * 0.45})`)
-  leftFlare.addColorStop(0.5, `rgba(0, 240, 255, ${intensity * 0.15})`)
-  leftFlare.addColorStop(1, 'rgba(0, 240, 255, 0)')
-  ctx.fillStyle = leftFlare
-  ctx.fillRect(0, cy - 1.5, cx, 3)
+  const meshY = (col, r) => {
+    // Perspektif Z derinliği (0: ufuk, 1: en yakın)
+    const zNorm = r / rows
+    const zSq = Math.pow(zNorm, 2.2)
 
-  // Sağ Magenta / Pembe Işık Hüzmesi
-  const rightFlare = ctx.createLinearGradient(cx, cy, W, cy)
-  rightFlare.addColorStop(0, `rgba(255, 45, 117, ${intensity * 0.45})`)
-  rightFlare.addColorStop(0.5, `rgba(255, 45, 117, ${intensity * 0.15})`)
-  rightFlare.addColorStop(1, 'rgba(255, 45, 117, 0)')
-  ctx.fillStyle = rightFlare
-  ctx.fillRect(cx, cy - 1.5, cx, 3)
-}
+    // Temel zemin çizgisi
+    const baseY = floorTop + (floorBottom - floorTop) * zSq
 
-// ── 2. DAİRESEL REAKTİF ÇEMBER BARI (360° MONSTERCAT / TRAP NATION) ───────────
-function drawRadialSpectrumBars(ctx, cx, cy, data, scale, bassEnergy, isPlaying) {
-  const baseRadius = 60 * scale
-  const totalBars = 110
-  const maxBarLength = 65
+    // Zemin dalgalanma kıvrımı (Kick/Bass vuruşlarında kabaran tepeler)
+    const distFromCenter = Math.abs(col - cols / 2) / (cols / 2)
+    const wave = Math.sin(col * 0.45 + time * 4 - r * 0.4) * Math.cos(r * 0.3 - time * 3)
+    const bassAmp = isPlaying ? (12 + bass * 38) : 8
+    const heightOffset = wave * bassAmp * zNorm * (0.3 + distFromCenter * 0.7)
 
-  ctx.save()
+    return baseY - heightOffset
+  }
 
-  for (let i = 0; i < totalBars; i++) {
-    // 360 derece etrafında simetrik açı dağılımı (Hafif diyagonal eğim)
-    const angle = (i / totalBars) * Math.PI * 2 - Math.PI / 2
+  const meshX = (col, r) => {
+    const zNorm = r / rows
+    const zSq = Math.pow(zNorm, 2.2)
+    const spread = (W * 0.75) * zSq
+    return vpX + ((col - cols / 2) / (cols / 2)) * spread
+  }
 
-    // Frekans indeksi eşleme (Sol ve sağ yarılar simetrik müzik tepkisi versin)
-    const half = totalBars / 2
-    let sampleIdx = 0
-    if (i < half) {
-      sampleIdx = Math.floor((i / half) * 48)
-    } else {
-      sampleIdx = Math.floor(((totalBars - i) / half) * 48)
-    }
-
-    const val = (data[sampleIdx] || 0) / 255
-    const barHeight = Math.max(3, val * maxBarLength)
-
-    const x1 = cx + Math.cos(angle) * baseRadius
-    const y1 = cy + Math.sin(angle) * baseRadius
-    const x2 = cx + Math.cos(angle) * (baseRadius + barHeight)
-    const y2 = cy + Math.sin(angle) * (baseRadius + barHeight)
-
-    // Referans görseldeki tam renk paleti:
-    // Sol taraf: Electric Cyan (#00f0ff) -> Buz Mavisi -> Mor (#8a2be2)
-    // Sağ taraf: Magenta (#ff2d75) -> Canlı Mercan -> Güneş Batımı Altın Sarısı (#ffaa00)
-    let barColor = '#00f0ff'
-    let glowColor = 'rgba(0, 240, 255, 0.8)'
-
-    const progress = i / totalBars
-    if (progress < 0.25) {
-      // Üst-sol: Cyan -> Mavi
-      barColor = '#00f0ff'
-      glowColor = 'rgba(0, 240, 255, 0.85)'
-    } else if (progress < 0.5) {
-      // Alt-sol: Mavi -> Derin Mor
-      barColor = '#7000ff'
-      glowColor = 'rgba(112, 0, 255, 0.85)'
-    } else if (progress < 0.75) {
-      // Alt-sağ: Fuşya / Magenta -> Neon Pembe
-      barColor = '#ff2d75'
-      glowColor = 'rgba(255, 45, 117, 0.85)'
-    } else {
-      // Üst-sağ: Sıcak Mercan -> Altın Turuncu
-      barColor = '#ff9900'
-      glowColor = 'rgba(255, 153, 0, 0.85)'
-    }
+  // Yatay Tel Çizgileri (Gözlemciye doğru akan hatlar)
+  for (let r = 1; r < rows; r++) {
+    const zNorm = r / rows
+    const alpha = Math.min(0.85, zNorm * 0.95)
+    ctx.strokeStyle = `rgba(0, 180, 255, ${alpha})`
+    ctx.lineWidth = r > rows - 4 ? 2 : 1
 
     ctx.beginPath()
-    ctx.moveTo(x1, y1)
-    ctx.lineTo(x2, y2)
-    ctx.strokeStyle = barColor
-    ctx.lineWidth = barHeight > 18 ? 3.2 : 2.2
-    ctx.lineCap = 'round'
-    ctx.shadowBlur = val > 0.35 ? 18 : 6
-    ctx.shadowColor = glowColor
-    ctx.stroke()
-
-    // Tepe Işık Noktaları (Peak Flare Dots)
-    if (barHeight > 14) {
-      const dotDist = baseRadius + barHeight + 3.5
-      const dotX = cx + Math.cos(angle) * dotDist
-      const dotY = cy + Math.sin(angle) * dotDist
-      ctx.fillStyle = '#ffffff'
-      ctx.beginPath()
-      ctx.arc(dotX, dotY, 1.4, 0, Math.PI * 2)
-      ctx.fill()
+    for (let c = 0; c < cols; c++) {
+      const x = meshX(c, r)
+      const y = meshY(c, r)
+      if (c === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
     }
+    ctx.stroke()
   }
 
-  ctx.restore()
+  // Boyuna Derinlik Çizgileri (Ufuktan kameraya doğru uzanan hatlar)
+  for (let c = 0; c < cols; c++) {
+    const distFromCenter = Math.abs(c - cols / 2) / (cols / 2)
+    ctx.strokeStyle = `rgba(0, 220, 255, ${0.15 + distFromCenter * 0.5})`
+    ctx.lineWidth = 1
+
+    ctx.beginPath()
+    for (let r = 0; r < rows; r++) {
+      const x = meshX(c, r)
+      const y = meshY(c, r)
+      if (r === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+  }
 }
 
-// ── 3. MERKEZ "N" LOGOLU ROZET (MONSTERCAT STİLİ İKONİK ÇEKİRDEK) ─────────────
-function drawCenterBadge(ctx, cx, cy, scale, bassEnergy) {
-  const outerR = 58 * scale
-  const innerR = 48 * scale
+// ── 2. TAVAN TEL IZGARASI (CEILING WIREFRAME) ─────────────────────────────────
+function drawCeilingGrid(ctx, W, H, vpX, vpY, time) {
+  const ceilBottom = vpY - 25
+  const ceilTop = -20
+  const cols = 22
+  const rows = 14
 
+  for (let r = 1; r < rows; r++) {
+    const zNorm = r / rows
+    const zSq = Math.pow(zNorm, 2.2)
+    const y = ceilBottom - (ceilBottom - ceilTop) * zSq
+    const spread = (W * 0.65) * zSq
+
+    ctx.strokeStyle = `rgba(0, 140, 220, ${zNorm * 0.35})`
+    ctx.lineWidth = 1
+
+    ctx.beginPath()
+    ctx.moveTo(vpX - spread, y)
+    ctx.lineTo(vpX + spread, y)
+    ctx.stroke()
+  }
+
+  for (let c = 0; c < cols; c++) {
+    const spreadFar = (W * 0.05)
+    const spreadNear = (W * 0.65)
+    const norm = (c - cols / 2) / (cols / 2)
+
+    ctx.strokeStyle = 'rgba(0, 140, 220, 0.22)'
+    ctx.lineWidth = 1
+
+    ctx.beginPath()
+    ctx.moveTo(vpX + norm * spreadFar, ceilBottom)
+    ctx.lineTo(vpX + norm * spreadNear, ceilTop)
+    ctx.stroke()
+  }
+}
+
+// ── 3. YAN DUVAR SPEKTRUM BARLARI (SOL: NEON MOR, SAĞ: LAZER YEŞİLİ) ─────────
+function drawSideEqualizerWalls(ctx, W, H, vpX, vpY, data, bass, isPlaying) {
+  const numColumns = 14
+  const barsPerCol = 12
+
+  // Sol Duvar (Neon Mor / Magenta: #d946ef / #a855f7)
+  drawPerspectiveWall(ctx, W, H, vpX, vpY, -1, numColumns, barsPerCol, data, 'purple', bass, isPlaying)
+
+  // Sağ Duvar (Lazer Yeşili: #00ff66 / #22c55e)
+  drawPerspectiveWall(ctx, W, H, vpX, vpY, 1, numColumns, barsPerCol, data, 'green', bass, isPlaying)
+}
+
+function drawPerspectiveWall(ctx, W, H, vpX, vpY, side, numCols, barsPerCol, data, theme, bass, isPlaying) {
+  // side: -1 (sol), 1 (sağ)
+  for (let col = 0; col < numCols; col++) {
+    // Derinlik normu (0: ufuk yakını, 1: ön plan)
+    const zNorm = (col + 1) / (numCols + 1)
+    const zSq = Math.pow(zNorm, 1.8)
+
+    // X ve Y perspektif koordinatları
+    const wallX = vpX + side * (120 + (W * 0.38) * zSq)
+    const wallYTop = vpY - (30 + 95 * zSq)
+    const wallYBottom = vpY + (20 + 80 * zSq)
+    const wallHeight = wallYBottom - wallYTop
+
+    // Frekans verisini sütuna eşle (Tizler ve orta sesler parıldasın)
+    const sampleIdx = Math.floor(col * 2.8) % data.length
+    const val = (data[sampleIdx] || 0) / 255
+    const activeBars = Math.floor(val * barsPerCol)
+
+    const blockH = Math.max(2, (wallHeight / barsPerCol) * 0.72)
+    const blockW = Math.max(3, 7 + 16 * zSq)
+
+    for (let b = 0; b < barsPerCol; b++) {
+      const bNorm = b / barsPerCol
+      const by = wallYBottom - bNorm * wallHeight
+
+      const isActive = b <= activeBars
+
+      let colStyle = ''
+      let glowStyle = ''
+
+      if (theme === 'purple') {
+        // Sol Duvar: Neon Fuşya / Mor
+        if (isActive) {
+          colStyle = b > barsPerCol - 3 ? '#ffffff' : b > barsPerCol - 6 ? '#ff2df7' : '#a855f7'
+          glowStyle = 'rgba(217, 70, 239, 0.9)'
+        } else {
+          colStyle = 'rgba(168, 85, 247, 0.12)'
+        }
+      } else {
+        // Sağ Duvar: Lazer Yeşili / Lime
+        if (isActive) {
+          colStyle = b > barsPerCol - 3 ? '#ffffff' : b > barsPerCol - 6 ? '#39ff14' : '#00e676'
+          glowStyle = 'rgba(0, 255, 102, 0.9)'
+        } else {
+          colStyle = 'rgba(0, 255, 102, 0.12)'
+        }
+      }
+
+      ctx.save()
+      ctx.fillStyle = colStyle
+      if (isActive && isPlaying) {
+        ctx.shadowBlur = 10 + bass * 12
+        ctx.shadowColor = glowStyle
+      }
+      // 3D eğiklik için hafif perspektif çizimi
+      const bx = side === -1 ? wallX - blockW : wallX
+      ctx.fillRect(bx, by - blockH, blockW, blockH)
+      ctx.restore()
+    }
+  }
+}
+
+// ── 4. YAN LAZER IŞINLARI (ÜST DUVAR RAYLARI) ──────────────────────────────────
+function drawLaserRails(ctx, W, H, vpX, vpY, bass) {
+  // Sol Mor Lazer Rayı
   ctx.save()
-
-  // 1. Dış Halka Arkası Yumuşak Aura (Cyan/Magenta Çift Işıma)
-  const auraGrad = ctx.createRadialGradient(cx, cy, innerR, cx, cy, outerR * 1.35)
-  auraGrad.addColorStop(0, `rgba(0, 240, 255, ${0.15 + bassEnergy * 0.3})`)
-  auraGrad.addColorStop(0.5, `rgba(255, 45, 117, ${0.12 + bassEnergy * 0.25})`)
-  auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
-  ctx.fillStyle = auraGrad
+  ctx.strokeStyle = '#d946ef'
+  ctx.lineWidth = 2.5
+  ctx.shadowBlur = 16 + bass * 16
+  ctx.shadowColor = 'rgba(217, 70, 239, 0.95)'
   ctx.beginPath()
-  ctx.arc(cx, cy, outerR * 1.35, 0, Math.PI * 2)
-  ctx.fill()
-
-  // 2. Koyu Metalik Dış Çerçeve Çemberi
-  ctx.beginPath()
-  ctx.arc(cx, cy, outerR, 0, Math.PI * 2)
-  ctx.fillStyle = '#080a14'
-  ctx.fill()
-
-  // Dış Çerçeve Kenar Gradyanı (Solda Cyan, Sağda Magenta)
-  const rimGrad = ctx.createLinearGradient(cx - outerR, cy - outerR, cx + outerR, cy + outerR)
-  rimGrad.addColorStop(0, '#00f0ff')
-  rimGrad.addColorStop(0.5, '#7000ff')
-  rimGrad.addColorStop(1, '#ff2d75')
-  ctx.strokeStyle = rimGrad
-  ctx.lineWidth = 3
-  ctx.shadowBlur = 18 + bassEnergy * 14
-  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(0, 240, 255, 0.9)' : 'rgba(255, 45, 117, 0.8)'
+  ctx.moveTo(vpX - 60, vpY - 30)
+  ctx.lineTo(0, vpY - 125)
   ctx.stroke()
 
-  // 3. İç Göbek Dairesi (Cyan-Magenta İç Geçişi)
-  const innerGrad = ctx.createLinearGradient(cx - innerR, cy - innerR, cx + innerR, cy + innerR)
-  innerGrad.addColorStop(0, '#0a1526')
-  innerGrad.addColorStop(0.5, '#120d22')
-  innerGrad.addColorStop(1, '#240b1e')
+  // Sağ Lazer Yeşili Rayı
+  ctx.strokeStyle = '#00ff66'
+  ctx.shadowColor = 'rgba(0, 255, 102, 0.95)'
   ctx.beginPath()
-  ctx.arc(cx, cy, innerR, 0, Math.PI * 2)
-  ctx.fillStyle = innerGrad
-  ctx.fill()
-
-  // İç İnce Kenar Çizgisi
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'
-  ctx.lineWidth = 1
+  ctx.moveTo(vpX + 60, vpY - 30)
+  ctx.lineTo(W, vpY - 125)
   ctx.stroke()
-
-  // 4. MERKEZDE KESKİN GEOMETRİK "N" LOGOSU
-  drawGeometricN(ctx, cx, cy, innerR * 0.58, bassEnergy)
-
   ctx.restore()
 }
 
-// ── GEOMETRİK "N" LOGOSU ÇİZİCİ (PROFESYONEL VE KESKİN) ────────────────────────
-function drawGeometricN(ctx, cx, cy, size, bass) {
-  ctx.save()
-
-  // Logoyu tam ortalamak için boyutlar
-  const w = size * 0.78
-  const h = size * 0.95
-  const barW = size * 0.22
-
-  const left = cx - w / 2
-  const right = cx + w / 2
-  const top = cy - h / 2
-  const bottom = cy + h / 2
-
-  // N Harfi Vektörel Yolu: Sol Dikey Sütun, Sağ Dikey Sütun ve Keskin Çapraz Köprü
-  ctx.beginPath()
-  // Sol Sütun
-  ctx.moveTo(left, bottom)
-  ctx.lineTo(left, top)
-  ctx.lineTo(left + barW, top)
-  // Çapraz İniş
-  ctx.lineTo(right - barW, bottom - barW * 0.8)
-  ctx.lineTo(right - barW, top)
-  ctx.lineTo(right, top)
-  ctx.lineTo(right, bottom)
-  ctx.lineTo(right - barW, bottom)
-  // Çapraz Çıkış
-  ctx.lineTo(left + barW, top + barW * 0.8)
-  ctx.lineTo(left + barW, bottom)
-  ctx.closePath()
-
-  // "N" Harfi Gradyan Dolgusu (Parlak Beyaz -> Neon Cyan / Magenta Işıması)
-  const nGrad = ctx.createLinearGradient(left, top, right, bottom)
-  nGrad.addColorStop(0, '#ffffff')
-  nGrad.addColorStop(0.45, '#e0f7ff')
-  nGrad.addColorStop(1, '#ffd1e8')
-  ctx.fillStyle = nGrad
-  ctx.shadowBlur = 18 + bass * 22
-  ctx.shadowColor = bass > 0.4 ? 'rgba(0, 240, 255, 0.95)' : 'rgba(255, 45, 117, 0.85)'
-  ctx.fill()
-
-  ctx.restore()
-}
-
-// ── 4. CHROMATIC ABERRATION'LI GEOMETRİK CAM PRİZMALAR / ŞİLTLER ──────────────
-function drawFloatingShards(ctx, cx, cy, shards, bass, isPlaying) {
-  const boost = isPlaying ? 1 + bass * 3.5 : 1
-
-  shards.forEach(s => {
-    s.dist += s.speed * boost
-    s.rot += s.rotSpeed
-    if (s.dist > 520) {
-      s.dist = 70
-      s.angle = Math.random() * Math.PI * 2
+// ── 5. UÇUŞAN HIZ YILDIZLARI (WARP STARS) ──────────────────────────────────────
+function drawWarpStars(ctx, vpX, vpY, stars, speed, bass) {
+  stars.forEach(s => {
+    s.z -= speed * 1.8
+    if (s.z <= 10) {
+      s.z = 1000
+      s.x = (Math.random() - 0.5) * 800
+      s.y = (Math.random() - 0.5) * 450
     }
 
-    const px = cx + Math.cos(s.angle) * s.dist
-    const py = cy + Math.sin(s.angle) * s.dist
+    // 3D Perspektif İzdüşümü
+    const fov = 260
+    const px = vpX + (s.x / s.z) * fov
+    const py = vpY + (s.y / s.z) * fov
+    const pSize = Math.max(0.6, (1 - s.z / 1000) * s.sz * (1 + bass * 0.8))
+    const alpha = Math.min(1, (1 - s.z / 1000) * 1.2)
 
     ctx.save()
-    ctx.translate(px, py)
-    ctx.rotate(s.rot)
-
-    // Chromatic Aberration Efekti (Kırmızı ve Cyan Katman Kayması)
-    // Katman 1: Kırmızı Renk Kayması (Offset -1.8px)
-    ctx.save()
-    ctx.translate(-1.8, 0)
-    ctx.fillStyle = `rgba(255, 45, 117, ${s.alpha * 0.65})`
-    drawSingleShardShape(ctx, s.size, s.shape)
-    ctx.fill()
-    ctx.restore()
-
-    // Katman 2: Cyan Renk Kayması (Offset +1.8px)
-    ctx.save()
-    ctx.translate(1.8, 0)
-    ctx.fillStyle = `rgba(0, 240, 255, ${s.alpha * 0.65})`
-    drawSingleShardShape(ctx, s.size, s.shape)
-    ctx.fill()
-    ctx.restore()
-
-    // Katman 3: Ana Beyaz Kristal Gövde
-    ctx.fillStyle = `rgba(255, 255, 255, ${s.alpha * 0.8})`
+    ctx.fillStyle = s.color
+    ctx.globalAlpha = alpha
     ctx.shadowBlur = 6
-    ctx.shadowColor = s.side === 'cyan' ? '#00f0ff' : '#ff2d75'
-    drawSingleShardShape(ctx, s.size, s.shape)
+    ctx.shadowColor = s.color
+    ctx.beginPath()
+    ctx.arc(px, py, pSize, 0, Math.PI * 2)
     ctx.fill()
-
     ctx.restore()
   })
-}
-
-// Geometrik Parça Şekli Çizici
-function drawSingleShardShape(ctx, size, shape) {
-  ctx.beginPath()
-  if (shape === 0) {
-    // Üçgen kristal
-    ctx.moveTo(0, -size)
-    ctx.lineTo(size * 0.8, size * 0.7)
-    ctx.lineTo(-size * 0.8, size * 0.7)
-  } else if (shape === 1) {
-    // Eşkenar dörtgen / Prizma
-    ctx.moveTo(0, -size)
-    ctx.lineTo(size * 0.6, 0)
-    ctx.lineTo(0, size)
-    ctx.lineTo(-size * 0.6, 0)
-  } else {
-    // Yamuk / Kesik kristal
-    ctx.moveTo(-size * 0.4, -size * 0.8)
-    ctx.lineTo(size * 0.7, -size * 0.4)
-    ctx.lineTo(size * 0.5, size * 0.8)
-    ctx.lineTo(-size * 0.6, size * 0.5)
-  }
-  ctx.closePath()
 }
