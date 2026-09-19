@@ -155,15 +155,13 @@ app.delete('/api/tracks/:id', requireAdmin, (req, res) => {
 });
 
 // ── Production: React frontend'i sun ──────────────────────────────────────────
-if (process.env.NODE_ENV === 'production') {
-  const distPath = path.join(__dirname, '..', 'dist');
-  if (fs.existsSync(distPath)) {
-    app.use(express.static(distPath));
-    // SPA — tüm diğer istekleri index.html'e yönlendir
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
+const distPath = path.join(__dirname, '..', 'dist');
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  // SPA — tüm diğer istekleri index.html'e yönlendir
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
 }
 
 // ── Hata yakalayıcı ────────────────────────────────────────────────────────────

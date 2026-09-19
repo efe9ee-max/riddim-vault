@@ -5,9 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "vite build && cd server && npm install",
     "preview": "vite preview",
-    "build:railway": "npm run build && cd server && npm install",
     "start": "cd server && node index.js"
   },
   "dependencies": {
