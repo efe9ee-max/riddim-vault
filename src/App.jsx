@@ -15,9 +15,9 @@ export default function App() {
 
   useEffect(() => {
     if (currentTrack) {
-      document.title = `▶ ${currentTrack.title} — RIDDIM VAULT`
+      document.title = `▶ ${currentTrack.title} — NAMMU ABYSS`
     } else {
-      document.title = 'RIDDIM VAULT'
+      document.title = 'NAMMU ABYSS'
     }
   }, [currentTrack])
 

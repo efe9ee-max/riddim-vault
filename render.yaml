@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: riddim-vault
+    name: nammu-abyss
     env: node
     plan: free
     buildCommand: npm install && npm run build && cd server && npm install

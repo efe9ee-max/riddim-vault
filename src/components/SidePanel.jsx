@@ -395,7 +395,7 @@ function DecoLines({ color }) {
         />
       ))}
       <div className="text-[7px] font-mono tracking-widest mt-2" style={{ color: c.replace('VAL', '0.3') }}>
-        RIDDIM VAULT v1.0
+        NAMMU ABYSS v1.0
       </div>
     </div>
   )
