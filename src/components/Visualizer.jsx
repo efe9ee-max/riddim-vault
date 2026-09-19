@@ -70,13 +70,6 @@ export default function Visualizer() {
       const targetScale = isPlaying ? 1.0 + Math.pow(bassEnergy, 1.8) * 0.32 : 1.0
       pulseScaleRef.current += (targetScale - pulseScaleRef.current) * 0.22
 
-      // Dönme açısı (Müzik çalarken yavaş plak dönüşü)
-      if (isPlaying) {
-        rotationRef.current += 0.007 + bassEnergy * 0.012
-      } else {
-        rotationRef.current += 0.002
-      }
-
       // Bas vuruşu (Kick) tespiti -> Şok dalgası fırlat
       if (isPlaying && bassEnergy > 0.62 && (bassEnergy - lastBassRef.current) > 0.12) {
         shockwavesRef.current.push({
@@ -104,8 +97,8 @@ export default function Visualizer() {
       // 4. Trap Nation 360° Simetrik Spektrum Işınları
       drawTrapNationBars(ctx, cx, cy, analyserData, isPlaying, pulseScaleRef.current)
 
-      // 5. Merkez Dönen Plak / Kapak / NAMMU Logosu
-      drawCenterDisc(ctx, cx, cy, pulseScaleRef.current, rotationRef.current, coverImgRef.current, bassEnergy, isPlaying)
+      // 5. Merkez Düz Kapak Görseli (Dönmez, yazı yazmaz, basla nabız gibi atar)
+      drawCenterDisc(ctx, cx, cy, pulseScaleRef.current, coverImgRef.current, bassEnergy, isPlaying)
 
       animRef.current = requestAnimationFrame(render)
     }
@@ -254,13 +247,13 @@ function drawTrapNationBars(ctx, cx, cy, data, isPlaying, scale) {
   ctx.restore()
 }
 
-// ── MERKEZ PLAK / KAPAK / LOGO ───────────────────────────────────────────────
-function drawCenterDisc(ctx, cx, cy, scale, rotation, coverImg, bassEnergy, isPlaying) {
+// ── MERKEZ DÜZ KAPAK GÖRSELİ (DÖNMEZ, YAZISIZ) ──────────────────────────────
+function drawCenterDisc(ctx, cx, cy, scale, coverImg, bassEnergy, isPlaying) {
   const radius = 58 * scale
 
   ctx.save()
   ctx.translate(cx, cy)
-  ctx.rotate(rotation)
+  // DÖNME YOK: Kapak tamamen düz ve dik durur
 
   // 1. Dış Parlama Aurası (Bass vuruşunda mor-yeşil patlar)
   const auraGrad = ctx.createRadialGradient(0, 0, radius * 0.7, 0, 0, radius * 1.35)
@@ -278,53 +271,36 @@ function drawCenterDisc(ctx, cx, cy, scale, rotation, coverImg, bassEnergy, isPl
   ctx.closePath()
   ctx.clip()
 
-  // Fütüristik Gece Mavisi / Siyah Vinil Plak
-  const vinylGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
-  vinylGrad.addColorStop(0, '#101222')
-  vinylGrad.addColorStop(0.65, '#07080f')
-  vinylGrad.addColorStop(1, '#020204')
-  ctx.fillStyle = vinylGrad
-  ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
+  if (coverImg) {
+    // 3A. Çalan parçanın kapak resmi DÜZ durur, dönmez ve üzerinde yazı olmaz
+    ctx.drawImage(coverImg, -radius, -radius, radius * 2, radius * 2)
+  } else {
+    // 3B. Kapak yoksa: Fütüristik şık koyu zemin
+    const darkGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
+    darkGrad.addColorStop(0, '#15182e')
+    darkGrad.addColorStop(0.7, '#090a12')
+    darkGrad.addColorStop(1, '#040407')
+    ctx.fillStyle = darkGrad
+    ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
 
-  // Vinil plak yivleri (İnce concentric grooves)
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)'
-  ctx.lineWidth = 1
-  for (let gr = 14; gr < radius - 2; gr += 7) {
-    ctx.beginPath()
-    ctx.arc(0, 0, gr, 0, Math.PI * 2)
-    ctx.stroke()
+    // Minimalist müzik ikonu
+    ctx.fillStyle = 'rgba(34, 197, 94, 0.45)'
+    ctx.font = `${Math.round(26 * scale)}px sans-serif`
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillText('🎵', 0, 0)
   }
 
-  // Merkezde basla parlayan neon NAMMU logosu
-  const textGlow = 10 + bassEnergy * 25
-  ctx.fillStyle = bassEnergy > 0.5 ? '#ffffff' : '#22c55e'
-  ctx.font = `900 ${Math.round(13.5 * scale)}px Orbitron, monospace`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.shadowBlur = textGlow
-  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.95)' : 'rgba(168, 85, 247, 0.85)'
-  ctx.fillText('NAMMU', 0, 0)
-  ctx.shadowBlur = 0
-
-  // 4. Plak orta göbek deliği & Parlak Dış Çember
   ctx.restore() // Klip'i kaldır
 
-  // Plak dış kenar neon çerçevesi
+  // 4. Kapak dış çember neon çerçevesi (Bas vuruşunda parlar)
   ctx.save()
   ctx.beginPath()
   ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-  ctx.strokeStyle = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.9)' : 'rgba(168, 85, 247, 0.7)'
+  ctx.strokeStyle = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.95)' : 'rgba(168, 85, 247, 0.75)'
   ctx.lineWidth = 2.5
   ctx.shadowBlur = 16
-  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.9)' : 'rgba(168, 85, 247, 0.7)'
+  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.95)' : 'rgba(168, 85, 247, 0.75)'
   ctx.stroke()
-
-  // Minik merkez iğne pini
-  ctx.beginPath()
-  ctx.arc(cx, cy, 4, 0, Math.PI * 2)
-  ctx.fillStyle = '#22c55e'
-  ctx.shadowBlur = 8
-  ctx.shadowColor = '#22c55e'
-  ctx.fill()
   ctx.restore()
 }
