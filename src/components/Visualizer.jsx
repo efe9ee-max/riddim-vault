@@ -175,41 +175,50 @@ function drawBloodAbyssWaves(ctx, cx, cy, data, isPlaying, scale, phase, bassEne
     points3.push({ x: cx + Math.cos(angle) * r3, y: cy + Math.sin(angle) * r3 })
   }
 
-  // 1. KATMAN: DIŞ SİBER TURUNCU REZONANS DALGA
+  // 1. KATMAN: DIŞ ELEKTRİK CYAN & MOR REZONANS DALGA
   ctx.save()
   drawSmoothClosedCurve(ctx, points2)
-  ctx.strokeStyle = `rgba(255, 110, 0, ${0.45 + bassEnergy * 0.5})`
+  const outerGrad = ctx.createLinearGradient(cx - baseRadius * 1.5, cy - baseRadius * 1.5, cx + baseRadius * 1.5, cy + baseRadius * 1.5)
+  outerGrad.addColorStop(0, `rgba(0, 240, 255, ${0.4 + bassEnergy * 0.5})`)
+  outerGrad.addColorStop(0.5, `rgba(217, 70, 239, ${0.5 + bassEnergy * 0.5})`)
+  outerGrad.addColorStop(1, `rgba(255, 100, 0, ${0.4 + bassEnergy * 0.5})`)
+  ctx.strokeStyle = outerGrad
   ctx.lineWidth = 2.5
-  ctx.shadowBlur = 20
-  ctx.shadowColor = 'rgba(255, 110, 0, 0.85)'
+  ctx.shadowBlur = 22
+  ctx.shadowColor = 'rgba(0, 240, 255, 0.85)'
   ctx.stroke()
 
-  // 2. KATMAN: İÇ MAGMA DOLGU AURA
+  // 2. KATMAN: İÇ ULTRAVİYOLE / MAGMA DOLGU AURA
   drawSmoothClosedCurve(ctx, points3)
-  ctx.fillStyle = `rgba(220, 20, 60, ${0.08 + bassEnergy * 0.18})`
+  ctx.fillStyle = `rgba(217, 70, 239, ${0.07 + bassEnergy * 0.15})`
   ctx.fill()
   ctx.restore()
 
-  // 3. KATMAN: ANA KAN KIRMIZISI SIVI DALGA (Ultra Parlak)
+  // 3. KATMAN: ANA SIVI DALGA (Ultra Canlı Neon Crimson -> Magenta -> Cyan Akışı)
   ctx.save()
   drawSmoothClosedCurve(ctx, points1)
-  ctx.strokeStyle = `rgba(255, 20, 70, ${0.9 + bassEnergy * 0.1})`
+  const mainGrad = ctx.createLinearGradient(cx - baseRadius, cy - baseRadius, cx + baseRadius, cy + baseRadius)
+  mainGrad.addColorStop(0, '#ff0055')
+  mainGrad.addColorStop(0.35, '#d946ef')
+  mainGrad.addColorStop(0.7, '#00f0ff')
+  mainGrad.addColorStop(1, '#ff6600')
+  ctx.strokeStyle = mainGrad
   ctx.lineWidth = 3.5
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  ctx.shadowBlur = 24 + bassEnergy * 20
-  ctx.shadowColor = 'rgba(255, 20, 70, 0.95)'
+  ctx.shadowBlur = 26 + bassEnergy * 24
+  ctx.shadowColor = bassEnergy > 0.45 ? 'rgba(255, 0, 85, 0.95)' : 'rgba(0, 240, 255, 0.85)'
   ctx.stroke()
   ctx.restore()
 
-  // 4. FREKANS KIVILCIMLARI (Akkor Beyaz/Altın Kıvılcımlar)
-  if (isPlaying && (bassEnergy > 0.38 || midEnergy > 0.35)) {
+  // 4. FREKANS KIVILCIMLARI (Akkor Beyaz / Cyan Elmas Işıklar)
+  if (isPlaying && (bassEnergy > 0.35 || midEnergy > 0.32)) {
     ctx.save()
     for (let i = 0; i < points1.length; i += 4) {
       const p = points1[i]
       ctx.fillStyle = '#ffffff'
-      ctx.shadowBlur = 12
-      ctx.shadowColor = '#ff6600'
+      ctx.shadowBlur = 14
+      ctx.shadowColor = i % 8 === 0 ? '#00f0ff' : '#ff007f'
       ctx.beginPath()
       ctx.arc(p.x, p.y, 1.8 + bassEnergy * 1.6, 0, Math.PI * 2)
       ctx.fill()
@@ -225,10 +234,11 @@ function drawAbyssCore(ctx, cx, cy, scale, phase, bassEnergy, isPlaying) {
   ctx.save()
   ctx.translate(cx, cy)
 
-  // 1. Dış Plazma Aurası (Ağır bas vuruşunda kırmızı-turuncu patlar)
+  // 1. Dış Plazma Aurası (Ağır bas vuruşunda kırmızı-magenta-cyan patlar)
   const glowGrad = ctx.createRadialGradient(0, 0, radius * 0.6, 0, 0, radius * 1.45)
-  glowGrad.addColorStop(0, `rgba(255, 20, 70, ${0.22 + bassEnergy * 0.5})`)
-  glowGrad.addColorStop(0.65, `rgba(255, 110, 0, ${0.14 + bassEnergy * 0.35})`)
+  glowGrad.addColorStop(0, `rgba(255, 0, 85, ${0.25 + bassEnergy * 0.5})`)
+  glowGrad.addColorStop(0.5, `rgba(217, 70, 239, ${0.15 + bassEnergy * 0.35})`)
+  glowGrad.addColorStop(0.85, `rgba(0, 240, 255, ${0.12 + bassEnergy * 0.25})`)
   glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
   ctx.fillStyle = glowGrad
   ctx.beginPath()
@@ -237,34 +247,34 @@ function drawAbyssCore(ctx, cx, cy, scale, phase, bassEnergy, isPlaying) {
 
   // 2. Koyu Obsidyen Zemin (Event Horizon)
   const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
-  coreGrad.addColorStop(0, '#1c050a')
-  coreGrad.addColorStop(0.65, '#0d0407')
-  coreGrad.addColorStop(1, '#030103')
+  coreGrad.addColorStop(0, '#150616')
+  coreGrad.addColorStop(0.65, '#0a050f')
+  coreGrad.addColorStop(1, '#020104')
   ctx.fillStyle = coreGrad
   ctx.beginPath()
   ctx.arc(0, 0, radius, 0, Math.PI * 2)
   ctx.fill()
 
   // 3. İç İçe Dönen Siber Hedefleme & Rezonans Çemberleri
-  ctx.strokeStyle = `rgba(255, 110, 0, ${0.2 + bassEnergy * 0.4})`
-  ctx.lineWidth = 1
+  ctx.strokeStyle = `rgba(0, 240, 255, ${0.25 + bassEnergy * 0.45})`
+  ctx.lineWidth = 1.2
   ctx.beginPath()
   ctx.arc(0, 0, radius * 0.72, 0, Math.PI * 2)
   ctx.stroke()
 
-  ctx.strokeStyle = `rgba(255, 20, 70, ${0.25 + bassEnergy * 0.4})`
+  ctx.strokeStyle = `rgba(255, 0, 85, ${0.3 + bassEnergy * 0.45})`
   ctx.beginPath()
   ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2)
   ctx.stroke()
 
   // 4. Merkezde Akkor Parlayan Geometrik "NAMMU" Siber Amblemi
-  const emblemGlow = 14 + bassEnergy * 30
-  ctx.fillStyle = bassEnergy > 0.5 ? '#ffffff' : '#ff2255'
+  const emblemGlow = 16 + bassEnergy * 32
+  ctx.fillStyle = bassEnergy > 0.5 ? '#ffffff' : '#00f0ff'
   ctx.font = `900 ${Math.round(14 * scale)}px Orbitron, monospace`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.shadowBlur = emblemGlow
-  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 20, 70, 0.95)'
+  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(255, 255, 255, 0.95)' : 'rgba(217, 70, 239, 0.95)'
   ctx.fillText('NAMMU', 0, 0)
   ctx.shadowBlur = 0
 

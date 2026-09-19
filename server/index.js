@@ -30,30 +30,32 @@ if (!fs.existsSync(DATA_FILE)) fs.writeFileSync(DATA_FILE, '[]', 'utf8');
 // ── Buluttan Veritabanını Otomatik İndir / Senkronize Et ───────────────────────
 async function syncDatabaseFromCloud() {
   try {
-    const cloudDbUrl = cloudinary.url('nammu_tracks_db.json', { resource_type: 'raw' });
-    https.get(cloudDbUrl, (res) => {
-      if (res.statusCode === 200) {
-        let raw = '';
-        res.on('data', chunk => raw += chunk);
-        res.on('end', () => {
-          try {
-            const remoteTracks = JSON.parse(raw);
-            if (Array.isArray(remoteTracks) && remoteTracks.length > 0) {
-              fs.writeFileSync(DATA_FILE, JSON.stringify(remoteTracks, null, 2), 'utf8');
-              console.log(`☁️ Cloudinary veritabanı senkronize edildi: ${remoteTracks.length} parça aktif.`);
+    const resource = await cloudinary.api.resource('nammu_tracks_db.json', { resource_type: 'raw' });
+    if (resource && resource.secure_url) {
+      https.get(`${resource.secure_url}?t=${Date.now()}`, (res) => {
+        if (res.statusCode === 200) {
+          let raw = '';
+          res.on('data', chunk => raw += chunk);
+          res.on('end', () => {
+            try {
+              const remoteTracks = JSON.parse(raw);
+              if (Array.isArray(remoteTracks) && remoteTracks.length > 0) {
+                fs.writeFileSync(DATA_FILE, JSON.stringify(remoteTracks, null, 2), 'utf8');
+                console.log(`☁️ Cloudinary veritabanı senkronize edildi: ${remoteTracks.length} parça aktif.`);
+              }
+            } catch (e) {
+              console.warn('Remote tracks parse error:', e.message);
             }
-          } catch (e) {
-            console.warn('Remote tracks parse error:', e.message);
-          }
-        });
-      }
-    }).on('error', (e) => console.warn('Cloud sync net error:', e.message));
+          });
+        }
+      }).on('error', (e) => console.warn('Cloud sync net error:', e.message));
+    }
   } catch (err) {
     console.warn('Cloudinary sync check:', err.message);
   }
 }
 
-// Sunucu açılır açılmaz bulutu kontrol et
+// Sunucu açılır açılmaz buluttan en güncel listeyi çek
 syncDatabaseFromCloud();
 
 // ── Middleware ─────────────────────────────────────────────────────────────────
@@ -188,12 +190,18 @@ app.post(
       tracks.unshift(newTrack);
       writeTracks(tracks);
 
-      // 5. Veritabanını Cloudinary bulutuna yükle (böylece Render sıfırlansa da kalıcı kalır!)
-      cloudinary.uploader.upload(DATA_FILE, {
-        resource_type: 'raw',
-        public_id: 'nammu_tracks_db.json',
-        overwrite: true
-      }).catch(err => console.error('Cloud DB backup error:', err.message));
+      // 5. Veritabanını Cloudinary bulutuna yükle (invalidate: true ile CDN önbelleği temizlenir)
+      try {
+        await cloudinary.uploader.upload(DATA_FILE, {
+          resource_type: 'raw',
+          public_id: 'nammu_tracks_db.json',
+          overwrite: true,
+          invalidate: true
+        });
+        console.log(`☁️ Bulut veritabanı ${tracks.length} parça ile güncellendi.`);
+      } catch (cloudErr) {
+        console.error('Cloud DB backup error:', cloudErr.message);
+      }
 
       console.log(`✅ Parça Cloudinary bulutuna basariyla kilitlendi: "${newTrack.title}"`);
       res.status(201).json(newTrack);
@@ -253,11 +261,16 @@ app.put(
       writeTracks(tracks);
 
       // Cloudinary bulut veritabanını güncelle
-      cloudinary.uploader.upload(DATA_FILE, {
-        resource_type: 'raw',
-        public_id: 'nammu_tracks_db.json',
-        overwrite: true
-      }).catch(err => console.error('Cloud DB edit sync error:', err.message));
+      try {
+        await cloudinary.uploader.upload(DATA_FILE, {
+          resource_type: 'raw',
+          public_id: 'nammu_tracks_db.json',
+          overwrite: true,
+          invalidate: true
+        });
+      } catch (cloudErr) {
+        console.error('Cloud DB edit sync error:', cloudErr.message);
+      }
 
       console.log(`✏️ Parça güncellendi: "${track.title}" (BPM: ${track.bpm || 'Yok'})`);
       res.json(track);
@@ -288,11 +301,16 @@ app.delete('/api/tracks/:id', requireAdmin, async (req, res) => {
   writeTracks(tracks);
 
   // Cloudinary veritabanını güncelle
-  cloudinary.uploader.upload(DATA_FILE, {
-    resource_type: 'raw',
-    public_id: 'nammu_tracks_db.json',
-    overwrite: true
-  }).catch(err => console.error('Cloud DB delete sync error:', err.message));
+  try {
+    await cloudinary.uploader.upload(DATA_FILE, {
+      resource_type: 'raw',
+      public_id: 'nammu_tracks_db.json',
+      overwrite: true,
+      invalidate: true
+    });
+  } catch (cloudErr) {
+    console.error('Cloud DB delete sync error:', cloudErr.message);
+  }
 
   res.json({ success: true });
 });
