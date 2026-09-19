@@ -1,0 +1,17 @@
+# Bağımlılıklar
+node_modules/
+server/node_modules/
+
+# Build çıktısı (Railway bunu build ederek üretir)
+dist/
+
+# Ortam değişkenleri
+.env
+.env.local
+.env.production
+
+# Yüklenen dosyalar — Railway'de ayrı bir Volume'a bağlanır
+server/uploads/
+
+# Vite cache
+.vite/

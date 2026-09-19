@@ -1,0 +1,62 @@
+[
+  {
+    "id": "317a1502-07cb-4b3a-ab9a-7cd9afc5ba78",
+    "title": "Extinction",
+    "artist": "Nammu",
+    "bpm": 70,
+    "key": null,
+    "genre": "Riddim",
+    "tags": [],
+    "description": "",
+    "audioUrl": "/uploads/audio/2f15a372-ac4a-4ee6-b995-294aefdc183b.wav",
+    "audioSize": 33572758,
+    "coverUrl": "/uploads/covers/b3e658b1-8626-423d-8fc4-6276ff9baec4.png",
+    "createdAt": "2026-09-19T09:45:12.203Z",
+    "plays": 0
+  },
+  {
+    "id": "d80317ba-bae7-47ea-a880-5610237ffd98",
+    "title": "Okiro",
+    "artist": "Nammu",
+    "bpm": 70,
+    "key": null,
+    "genre": "Riddim",
+    "tags": [],
+    "description": "",
+    "audioUrl": "/uploads/audio/b4ed793b-57dc-4c6a-823c-68d6a40d80d8.wav",
+    "audioSize": 43447042,
+    "coverUrl": "/uploads/covers/00d65565-6d46-4cb9-b4c3-7c4d91b9f510.png",
+    "createdAt": "2026-09-19T09:40:02.862Z",
+    "plays": 0
+  },
+  {
+    "id": "1c776c2a-69bc-401b-9ff7-fc70b1efcd9d",
+    "title": "Violet",
+    "artist": "Nammu",
+    "bpm": 70,
+    "key": null,
+    "genre": "Riddim",
+    "tags": [],
+    "description": "",
+    "audioUrl": "/uploads/audio/e35dac0f-0430-419e-8f6a-fc88381334fa.wav",
+    "audioSize": 46162468,
+    "coverUrl": "/uploads/covers/50ee7863-ac1e-4093-b721-add145dd9469.png",
+    "createdAt": "2026-09-19T09:28:52.951Z",
+    "plays": 0
+  },
+  {
+    "id": "89d0b6c8-8ccf-4511-bcae-de9782b1be74",
+    "title": "BAKAA!",
+    "artist": "Nammu",
+    "bpm": 120,
+    "key": null,
+    "genre": "EDM",
+    "tags": [],
+    "description": "",
+    "audioUrl": "/uploads/audio/97faa459-7386-4b95-bca0-85f56e60d5ab.wav",
+    "audioSize": 32256184,
+    "coverUrl": "/uploads/covers/bb431bca-322e-4a0c-a555-bb2e9c36fac5.png",
+    "createdAt": "2026-09-19T09:25:58.121Z",
+    "plays": 0
+  }
+]

@@ -1,0 +1,141 @@
+// Demo parçalar — API boşken görünen placeholder veriler
+// Gerçek parçalar yüklenince bunlar otomatik gizlenir
+
+export const DEMO_TRACKS = [
+  {
+    id: 'demo-1',
+    title: 'Subterranean',
+    artist: 'VAULT DEMO',
+    bpm: 140,
+    key: 'F Minor',
+    genre: 'Heavy Riddim',
+    tags: ['DEMO', 'FREE DL'],
+    description: 'Kendi parçanı yüklemek için Admin ile giriş yap.',
+    audioUrl: null, // Demo → ses yok, sadece görsel
+    coverUrl: null,
+    plays: 0,
+    isDemo: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-2',
+    title: 'Trench Protocol',
+    artist: 'VAULT DEMO',
+    bpm: 142,
+    key: 'D# Minor',
+    genre: 'Trench',
+    tags: ['DEMO', 'WIP'],
+    description: 'Demo placeholder parçası.',
+    audioUrl: null,
+    coverUrl: null,
+    plays: 0,
+    isDemo: true,
+    createdAt: new Date().toISOString(),
+  },
+  {
+    id: 'demo-3',
+    title: 'Wobble Dimension',
+    artist: 'VAULT DEMO',
+    bpm: 150,
+    key: 'C Minor',
+    genre: 'Tearout',
+    tags: ['DEMO', 'VIP'],
+    description: 'Demo placeholder parçası.',
+    audioUrl: null,
+    coverUrl: null,
+    plays: 0,
+    isDemo: true,
+    createdAt: new Date().toISOString(),
+  },
+]
+
+export const TAG_COLORS = {
+  'DUBPLATE': 'purple',
+  'VIP': 'purple',
+  'UNRELEASED': 'warning',
+  'WIP': 'warning',
+  'FREE DL': 'neon',
+  'DEMO': 'grey',
+  'CLIP': 'cyan',
+  'ID': 'grey',
+  'COLLAB': 'cyan',
+}
+
+export const GENRES = [
+  // ── Bass / Dubstep ──────────────────────────────
+  'Heavy Riddim',
+  'Trench',
+  'Tearout',
+  'Briddim',
+  'Riddim',
+  'Dubstep',
+  'Brostep',
+  'Melodic Dubstep',
+  'Hybrid Trap',
+  // ── Bass House / Future Bass ────────────────────
+  'Future Bass',
+  'Color Bass',
+  'Wave',
+  'Bass House',
+  'G-House',
+  'Deathstep',
+  // ── Trap / Hip-Hop ──────────────────────────────
+  'Trap',
+  'Dark Trap',
+  'Phonk',
+  'Memphis Phonk',
+  'Rage',
+  'Hard Trap',
+  'Lo-Fi Hip-Hop',
+  // ── EDM / Dance ─────────────────────────────────
+  'EDM',
+  'Big Room',
+  'Progressive House',
+  'Electro House',
+  'Tech House',
+  'Deep House',
+  'Future House',
+  'Bounce',
+  // ── Drum & Bass / Jungle ────────────────────────
+  'Drum and Bass',
+  'Liquid DnB',
+  'Neurofunk',
+  'Jungle',
+  // ── Electronic / Synth ──────────────────────────
+  'Electronic',
+  'Synthwave',
+  'Retrowave',
+  'Darkwave',
+  'Industrial',
+  'Electro',
+  'Glitch',
+  'Experimental',
+  // ── Ambient / Cinematic ─────────────────────────
+  'Ambient',
+  'Dark Ambient',
+  'Cinematic',
+  'Atmospheric',
+  'Drone',
+  // ── Dünya / Kültür Füzyon ───────────────────────
+  'Celtic',
+  'Celtic Trap',
+  'Viking / Norse',
+  'Flamenco Fusion',
+  'Oriental Trap',
+  'Arabian Phonk',
+  'Latin Trap',
+  'Afrobeat',
+  'Reggaeton',
+  'Bollywood Trap',
+  // ── Diğer ───────────────────────────────────────
+  'Diğer',
+]
+
+export const KEYS = [
+  'C Major', 'C Minor', 'C# Major', 'C# Minor',
+  'D Major', 'D Minor', 'D# Major', 'D# Minor',
+  'E Major', 'E Minor', 'F Major', 'F Minor',
+  'F# Major', 'F# Minor', 'G Major', 'G Minor',
+  'G# Major', 'G# Minor', 'A Major', 'A Minor',
+  'A# Major', 'A# Minor', 'B Major', 'B Minor',
+]
