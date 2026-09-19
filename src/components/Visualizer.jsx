@@ -3,41 +3,27 @@ import { useAudio } from '../context/AudioContext'
 
 export default function Visualizer() {
   const canvasRef = useRef(null)
-  const { analyserData, isPlaying, currentTrack } = useAudio()
+  const { analyserData, isPlaying } = useAudio()
 
   const pulseScaleRef = useRef(1)
   const shakeRef = useRef({ x: 0, y: 0 })
   const shockwavesRef = useRef([])
   const particlesRef = useRef([])
-  const coverImgRef = useRef(null)
   const animRef = useRef(null)
   const lastBassRef = useRef(0)
   const phaseRef = useRef(0)
 
-  // Kapak görseli değiştiğinde yükle
-  useEffect(() => {
-    if (currentTrack?.coverUrl) {
-      const img = new Image()
-      img.crossOrigin = 'anonymous'
-      img.src = currentTrack.coverUrl
-      img.onload = () => { coverImgRef.current = img }
-      img.onerror = () => { coverImgRef.current = null }
-    } else {
-      coverImgRef.current = null
-    }
-  }, [currentTrack])
-
-  // Parçacık sistemi (The Dub Rebellion tarzı karanlık siber kıvılcımlar)
+  // Parçacık sistemi (Blood Abyss tarzı köz ve magma kıvılcımları)
   const initParticles = useCallback(() => {
-    particlesRef.current = Array.from({ length: 75 }, () => ({
+    particlesRef.current = Array.from({ length: 80 }, () => ({
       x: 0,
       y: 0,
       angle: Math.random() * Math.PI * 2,
-      dist: Math.random() * 320 + 70,
-      speed: Math.random() * 0.7 + 0.25,
-      size: Math.random() * 2 + 0.6,
-      alpha: Math.random() * 0.7 + 0.15,
-      hue: Math.random() < 0.6 ? 'neon' : Math.random() < 0.5 ? 'cyan' : 'purple'
+      dist: Math.random() * 320 + 60,
+      speed: Math.random() * 0.75 + 0.3,
+      size: Math.random() * 2.2 + 0.6,
+      alpha: Math.random() * 0.75 + 0.2,
+      hue: Math.random() < 0.5 ? 'red' : Math.random() < 0.4 ? 'orange' : 'gold'
     }))
   }, [])
 
@@ -56,9 +42,9 @@ export default function Visualizer() {
       const cx = W / 2
       const cy = H / 2
 
-      phaseRef.current += 0.035
+      phaseRef.current += 0.038
 
-      // 1. Bas enerjisi hesapla
+      // 1. Bas ve Orta Frekans Enerjisi
       let bassEnergy = 0
       let midEnergy = 0
       if (analyserData && isPlaying) {
@@ -74,23 +60,23 @@ export default function Visualizer() {
         midEnergy = mSum / ((mEnd - mStart) * 255)
       }
 
-      // 2. The Dub Rebellion "Bass Punch" Zıplaması (Sert Riddim Vuruşu)
-      const targetScale = isPlaying ? 1.0 + Math.pow(bassEnergy, 1.6) * 0.28 : 1.0
+      // 2. The Dub Rebellion "Bass Punch" Zıplaması
+      const targetScale = isPlaying ? 1.0 + Math.pow(bassEnergy, 1.6) * 0.30 : 1.0
       pulseScaleRef.current += (targetScale - pulseScaleRef.current) * 0.28
 
-      // Sert bas/snare anında ekran mikro sarsıntısı (Screen Shake)
+      // Sert kick/snare anında ekran sarsıntısı (Tearout Screen Shake)
       const bassDelta = bassEnergy - lastBassRef.current
       if (isPlaying && bassEnergy > 0.65 && bassDelta > 0.12) {
         shakeRef.current.x = (Math.random() - 0.5) * (bassEnergy * 8)
         shakeRef.current.y = (Math.random() - 0.5) * (bassEnergy * 8)
 
-        // Şok dalgası fırlat
+        // Kan kırmızısı / Magma turuncusu şok dalgası fırlat
         shockwavesRef.current.push({
           r: 65 * pulseScaleRef.current,
           maxR: Math.max(W, H) * 0.46,
           alpha: 0.85,
           speed: 7 + bassEnergy * 8,
-          color: Math.random() > 0.4 ? 'rgba(34,197,94,' : 'rgba(6,182,212,'
+          color: Math.random() > 0.5 ? 'rgba(255, 20, 70,' : 'rgba(255, 110, 0,'
         })
       } else {
         shakeRef.current.x *= 0.75
@@ -98,10 +84,10 @@ export default function Visualizer() {
       }
       lastBassRef.current = bassEnergy
 
-      // ── ÇİZİM ─────────────────────────────────────────────────────────────
+      // ── ÇİZİM AŞAMALARI ──────────────────────────────────────────────────
       
-      // Arka plan temizle
-      ctx.fillStyle = 'rgba(7, 8, 13, 0.84)'
+      // Arka plan temizle (Koyu antrasit / kan gölgesi izi ile)
+      ctx.fillStyle = 'rgba(6, 6, 10, 0.84)'
       ctx.fillRect(0, 0, W, H)
 
       ctx.save()
@@ -111,14 +97,14 @@ export default function Visualizer() {
       // Şok dalgaları
       drawShockwaves(ctx, cx, cy, shockwavesRef.current)
 
-      // Dışarıya süzülen köz parçacıkları
+      // Dışarıya süzülen köz / kıvılcım parçacıkları
       drawParticles(ctx, cx, cy, particlesRef.current, bassEnergy, isPlaying)
 
-      // The Dub Rebellion Sıvı / Elektrik Dalga Halkaları
-      drawDubRebellionWaves(ctx, cx, cy, analyserData, isPlaying, pulseScaleRef.current, phaseRef.current, bassEnergy, midEnergy)
+      // Blood Abyss (Kan Kırmızısı & Siber Turuncu) Sıvı Dalga Halkaları
+      drawBloodAbyssWaves(ctx, cx, cy, analyserData, isPlaying, pulseScaleRef.current, phaseRef.current, bassEnergy, midEnergy)
 
-      // Merkez Kapak Görseli (Dönmez, dik durur, basla zıplar)
-      drawCenterCover(ctx, cx, cy, pulseScaleRef.current, coverImgRef.current, bassEnergy)
+      // Merkez: The Abyss Core / Singularity Çekirdeği (Kapak yerine reaktif reaktör)
+      drawAbyssCore(ctx, cx, cy, pulseScaleRef.current, phaseRef.current, bassEnergy, isPlaying)
 
       ctx.restore()
 
@@ -131,10 +117,10 @@ export default function Visualizer() {
 
   return (
     <div
-      className="relative w-full rounded-xl overflow-hidden shadow-2xl border border-border/40"
+      className="relative w-full rounded-xl overflow-hidden shadow-2xl border border-red-950/40"
       style={{
         height: '270px',
-        background: 'radial-gradient(ellipse at center, rgba(6,182,212,0.06) 0%, rgba(7,8,13,0.96) 72%)'
+        background: 'radial-gradient(ellipse at center, rgba(255,20,70,0.08) 0%, rgba(6,6,10,0.96) 72%)'
       }}
     >
       <canvas
@@ -148,16 +134,15 @@ export default function Visualizer() {
   )
 }
 
-// ── THE DUB REBELLION SIVI ELEKTRİK DALGA HALKALARI ──────────────────────────
-function drawDubRebellionWaves(ctx, cx, cy, data, isPlaying, scale, phase, bassEnergy, midEnergy) {
+// ── 🔴 BLOOD ABYSS (KAN KIRMIZISI & SİBER TURUNCU) SIVI ELEKTRİK DALGALARI ────
+function drawBloodAbyssWaves(ctx, cx, cy, data, isPlaying, scale, phase, bassEnergy, midEnergy) {
   const baseRadius = 60 * scale
   const pointsCount = 96
-  const maxAmp = 46
+  const maxAmp = 48
 
-  // Frekans noktalarını hesapla
-  const points1 = []
-  const points2 = []
-  const points3 = []
+  const points1 = [] // Ana Kan Kırmızısı Dalga
+  const points2 = [] // Dış Siber Turuncu Rezonans Dalga
+  const points3 = [] // İç Magma Dolgu Aurası
 
   for (let i = 0; i <= pointsCount; i++) {
     const angle = (i / pointsCount) * Math.PI * 2 - Math.PI / 2
@@ -173,64 +158,127 @@ function drawDubRebellionWaves(ctx, cx, cy, data, isPlaying, scale, phase, bassE
       val = 0.04 + Math.sin(phase * 2 + i * 0.25) * 0.02
     }
 
-    // Riddim Wobble dalgası (Sıvı gibi kıvrılan organik hareket)
-    const wobble1 = Math.sin(phase * 3 + i * 0.4) * (midEnergy * 10)
-    const wobble2 = Math.cos(phase * 2.5 - i * 0.3) * (bassEnergy * 14)
+    // Riddim Tearout Wobble dalgalanması
+    const wobble1 = Math.sin(phase * 3 + i * 0.4) * (midEnergy * 11)
+    const wobble2 = Math.cos(phase * 2.5 - i * 0.3) * (bassEnergy * 15)
 
-    // Katman 1: Ana Toksik Yeşil Dalga
+    // Katman 1: Ana Kan Kırmızısı
     const r1 = baseRadius + Math.max(3, val * maxAmp) + wobble1
     points1.push({ x: cx + Math.cos(angle) * r1, y: cy + Math.sin(angle) * r1 })
 
-    // Katman 2: Dış Cyan / Mor Rezonans Dalgası
+    // Katman 2: Dış Siber Turuncu
     const r2 = baseRadius + Math.max(2, val * (maxAmp * 1.25)) + wobble2 + 5
     points2.push({ x: cx + Math.cos(angle) * r2, y: cy + Math.sin(angle) * r2 })
 
-    // Katman 3: İç Yumuşak Taban Dalgası
+    // Katman 3: İç Magma Dolgusu
     const r3 = baseRadius + Math.max(1, val * (maxAmp * 0.55))
     points3.push({ x: cx + Math.cos(angle) * r3, y: cy + Math.sin(angle) * r3 })
   }
 
-  // 1. KATMAN (ARKADAKİ CYAN / PURPLE REZONANS AURA)
+  // 1. KATMAN: DIŞ SİBER TURUNCU REZONANS DALGA
   ctx.save()
   drawSmoothClosedCurve(ctx, points2)
-  ctx.strokeStyle = `rgba(6, 182, 212, ${0.4 + bassEnergy * 0.5})`
+  ctx.strokeStyle = `rgba(255, 110, 0, ${0.45 + bassEnergy * 0.5})`
   ctx.lineWidth = 2.5
-  ctx.shadowBlur = 18
-  ctx.shadowColor = 'rgba(6, 182, 212, 0.8)'
+  ctx.shadowBlur = 20
+  ctx.shadowColor = 'rgba(255, 110, 0, 0.85)'
   ctx.stroke()
 
-  // 2. KATMAN (ARA MOR DOLGU AURA)
+  // 2. KATMAN: İÇ MAGMA DOLGU AURA
   drawSmoothClosedCurve(ctx, points3)
-  ctx.fillStyle = `rgba(168, 85, 247, ${0.08 + bassEnergy * 0.15})`
+  ctx.fillStyle = `rgba(220, 20, 60, ${0.08 + bassEnergy * 0.18})`
   ctx.fill()
   ctx.restore()
 
-  // 3. KATMAN (ANA THE DUB REBELLION ELEKTRİK YEŞİLİ SIVI DALGA)
+  // 3. KATMAN: ANA KAN KIRMIZISI SIVI DALGA (Ultra Parlak)
   ctx.save()
   drawSmoothClosedCurve(ctx, points1)
-  ctx.strokeStyle = `rgba(34, 197, 94, ${0.85 + bassEnergy * 0.15})`
+  ctx.strokeStyle = `rgba(255, 20, 70, ${0.9 + bassEnergy * 0.1})`
   ctx.lineWidth = 3.5
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  ctx.shadowBlur = 22 + bassEnergy * 18
-  ctx.shadowColor = 'rgba(34, 197, 94, 0.95)'
+  ctx.shadowBlur = 24 + bassEnergy * 20
+  ctx.shadowColor = 'rgba(255, 20, 70, 0.95)'
   ctx.stroke()
   ctx.restore()
 
-  // 4. DALGA ÜZERİNDEKİ FREKANS KIVILCIMLARI (TDR Glow Spikes)
-  if (isPlaying && (bassEnergy > 0.4 || midEnergy > 0.35)) {
+  // 4. FREKANS KIVILCIMLARI (Akkor Beyaz/Altın Kıvılcımlar)
+  if (isPlaying && (bassEnergy > 0.38 || midEnergy > 0.35)) {
     ctx.save()
     for (let i = 0; i < points1.length; i += 4) {
       const p = points1[i]
       ctx.fillStyle = '#ffffff'
-      ctx.shadowBlur = 10
-      ctx.shadowColor = '#22c55e'
+      ctx.shadowBlur = 12
+      ctx.shadowColor = '#ff6600'
       ctx.beginPath()
-      ctx.arc(p.x, p.y, 1.8 + bassEnergy * 1.5, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, 1.8 + bassEnergy * 1.6, 0, Math.PI * 2)
       ctx.fill()
     }
     ctx.restore()
   }
+}
+
+// ── MERKEZ: THE ABYSS CORE (REAKTİF SİBER ÇEKİRDEK / KARA DELİK) ─────────────
+function drawAbyssCore(ctx, cx, cy, scale, phase, bassEnergy, isPlaying) {
+  const radius = 58 * scale
+
+  ctx.save()
+  ctx.translate(cx, cy)
+
+  // 1. Dış Plazma Aurası (Ağır bas vuruşunda kırmızı-turuncu patlar)
+  const glowGrad = ctx.createRadialGradient(0, 0, radius * 0.6, 0, 0, radius * 1.45)
+  glowGrad.addColorStop(0, `rgba(255, 20, 70, ${0.22 + bassEnergy * 0.5})`)
+  glowGrad.addColorStop(0.65, `rgba(255, 110, 0, ${0.14 + bassEnergy * 0.35})`)
+  glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
+  ctx.fillStyle = glowGrad
+  ctx.beginPath()
+  ctx.arc(0, 0, radius * 1.45, 0, Math.PI * 2)
+  ctx.fill()
+
+  // 2. Koyu Obsidyen Zemin (Event Horizon)
+  const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
+  coreGrad.addColorStop(0, '#1c050a')
+  coreGrad.addColorStop(0.65, '#0d0407')
+  coreGrad.addColorStop(1, '#030103')
+  ctx.fillStyle = coreGrad
+  ctx.beginPath()
+  ctx.arc(0, 0, radius, 0, Math.PI * 2)
+  ctx.fill()
+
+  // 3. İç İçe Dönen Siber Hedefleme & Rezonans Çemberleri
+  ctx.strokeStyle = `rgba(255, 110, 0, ${0.2 + bassEnergy * 0.4})`
+  ctx.lineWidth = 1
+  ctx.beginPath()
+  ctx.arc(0, 0, radius * 0.72, 0, Math.PI * 2)
+  ctx.stroke()
+
+  ctx.strokeStyle = `rgba(255, 20, 70, ${0.25 + bassEnergy * 0.4})`
+  ctx.beginPath()
+  ctx.arc(0, 0, radius * 0.45, 0, Math.PI * 2)
+  ctx.stroke()
+
+  // 4. Merkezde Akkor Parlayan Geometrik "NAMMU" Siber Amblemi
+  const emblemGlow = 14 + bassEnergy * 30
+  ctx.fillStyle = bassEnergy > 0.5 ? '#ffffff' : '#ff2255'
+  ctx.font = `900 ${Math.round(14 * scale)}px Orbitron, monospace`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.shadowBlur = emblemGlow
+  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(255, 255, 255, 0.95)' : 'rgba(255, 20, 70, 0.95)'
+  ctx.fillText('NAMMU', 0, 0)
+  ctx.shadowBlur = 0
+
+  // 5. Çekirdek Dış Çember Neon Çerçevesi
+  ctx.restore() // Çeviri kalktı
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+  ctx.strokeStyle = bassEnergy > 0.4 ? 'rgba(255, 20, 70, 0.98)' : 'rgba(255, 110, 0, 0.8)'
+  ctx.lineWidth = 3
+  ctx.shadowBlur = 20 + bassEnergy * 16
+  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(255, 20, 70, 0.98)' : 'rgba(255, 110, 0, 0.8)'
+  ctx.stroke()
+  ctx.restore()
 }
 
 // Kapalı düzgün eğri çizici (Smooth Spline Curve)
@@ -245,68 +293,11 @@ function drawSmoothClosedCurve(ctx, points) {
     ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc)
   }
 
-  // Son noktayı başa bağla
   const last = points.length - 1
   const xc = (points[last].x + points[0].x) / 2
   const yc = (points[last].y + points[0].y) / 2
   ctx.quadraticCurveTo(points[last].x, points[last].y, xc, yc)
   ctx.closePath()
-}
-
-// ── MERKEZ KAPAK GÖRSELİ (DÖNMEZ, BASLA PUNCH ATAR) ─────────────────────────
-function drawCenterCover(ctx, cx, cy, scale, coverImg, bassEnergy) {
-  const radius = 58 * scale
-
-  ctx.save()
-  ctx.translate(cx, cy)
-
-  // 1. Kapak Arkası Ağır Neon Bas Patlaması
-  const glowGrad = ctx.createRadialGradient(0, 0, radius * 0.6, 0, 0, radius * 1.4)
-  glowGrad.addColorStop(0, `rgba(34, 197, 94, ${0.2 + bassEnergy * 0.45})`)
-  glowGrad.addColorStop(0.65, `rgba(6, 182, 212, ${0.12 + bassEnergy * 0.3})`)
-  glowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
-  ctx.fillStyle = glowGrad
-  ctx.beginPath()
-  ctx.arc(0, 0, radius * 1.4, 0, Math.PI * 2)
-  ctx.fill()
-
-  // 2. Kapak Daire Klip
-  ctx.beginPath()
-  ctx.arc(0, 0, radius, 0, Math.PI * 2)
-  ctx.closePath()
-  ctx.clip()
-
-  if (coverImg) {
-    // Kapak tamamen DİK ve SABİT durur
-    ctx.drawImage(coverImg, -radius, -radius, radius * 2, radius * 2)
-  } else {
-    // Kapak yokken: Karanlık siber daire
-    const darkGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, radius)
-    darkGrad.addColorStop(0, '#15192e')
-    darkGrad.addColorStop(0.7, '#080912')
-    darkGrad.addColorStop(1, '#030306')
-    ctx.fillStyle = darkGrad
-    ctx.fillRect(-radius, -radius, radius * 2, radius * 2)
-
-    ctx.fillStyle = 'rgba(34, 197, 94, 0.5)'
-    ctx.font = `${Math.round(26 * scale)}px sans-serif`
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'middle'
-    ctx.fillText('⚡', 0, 0)
-  }
-
-  ctx.restore()
-
-  // 3. TDR Neon Çerçeve Halkası
-  ctx.save()
-  ctx.beginPath()
-  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-  ctx.strokeStyle = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.95)' : 'rgba(6, 182, 212, 0.75)'
-  ctx.lineWidth = 3
-  ctx.shadowBlur = 18 + bassEnergy * 14
-  ctx.shadowColor = bassEnergy > 0.4 ? 'rgba(34, 197, 94, 0.95)' : 'rgba(6, 182, 212, 0.75)'
-  ctx.stroke()
-  ctx.restore()
 }
 
 // ── ŞOK DALGALARI (BASS SHOCKWAVES) ──────────────────────────────────────────
@@ -333,14 +324,14 @@ function drawShockwaves(ctx, cx, cy, waves) {
   }
 }
 
-// ── KÖZ / KIVILCIM PARÇACIKLARI ──────────────────────────────────────────────
+// ── KÖZ / KIVILCIM PARÇACIKLARI (BLOOD ABYSS) ────────────────────────────────
 function drawParticles(ctx, cx, cy, particles, bassEnergy, isPlaying) {
   const boost = isPlaying ? 1 + bassEnergy * 4 : 1
 
   particles.forEach(p => {
     p.dist += p.speed * boost
     if (p.dist > 520) {
-      p.dist = 65
+      p.dist = 60
       p.angle = Math.random() * Math.PI * 2
     }
 
@@ -348,9 +339,9 @@ function drawParticles(ctx, cx, cy, particles, bassEnergy, isPlaying) {
     const py = cy + Math.sin(p.angle) * p.dist
     const size = p.size * (1 + bassEnergy * 0.7)
 
-    let color = 'rgba(34,197,94,'
-    if (p.hue === 'cyan') color = 'rgba(6,182,212,'
-    if (p.hue === 'purple') color = 'rgba(168,85,247,'
+    let color = 'rgba(255,20,70,'
+    if (p.hue === 'orange') color = 'rgba(255,110,0,'
+    if (p.hue === 'gold') color = 'rgba(255,200,50,'
 
     ctx.save()
     ctx.fillStyle = `${color}${p.alpha})`
