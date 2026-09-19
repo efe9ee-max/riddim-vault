@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import TrackCard from './TrackCard'
 import { DEMO_TRACKS } from '../data/demoTracks'
 
-export default function TrackGrid({ tracks, isAdmin, onDelete }) {
+export default function TrackGrid({ tracks, isAdmin, onDelete, onUpdate }) {
   const allTracks = tracks.length > 0 ? tracks : DEMO_TRACKS
 
   const sorted = useMemo(() =>
@@ -27,6 +27,7 @@ export default function TrackGrid({ tracks, isAdmin, onDelete }) {
           track={track}
           isAdmin={isAdmin}
           onDelete={onDelete}
+          onUpdate={onUpdate}
         />
       ))}
     </div>

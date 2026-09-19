@@ -204,6 +204,70 @@ app.post(
   }
 );
 
+// PUT /api/tracks/:id → Parça bilgilerini düzenle (admin)
+app.put(
+  '/api/tracks/:id',
+  requireAdmin,
+  upload.fields([{ name: 'cover', maxCount: 1 }]),
+  async (req, res) => {
+    try {
+      const tracks = readTracks();
+      const track = tracks.find(t => t.id === req.params.id);
+      if (!track) return res.status(404).json({ error: 'Parça bulunamadı.' });
+
+      const { title, artist, bpm, key, genre, tags, description } = req.body;
+
+      if (title && title.trim()) track.title = title.trim();
+      if (artist !== undefined) track.artist = artist.trim() || 'Nammu';
+
+      // BPM düzenleme veya tamamen kaldırma (boş bırakılırsa kaldırılır)
+      if (bpm === '' || bpm === null || bpm === undefined || bpm === '0') {
+        track.bpm = null;
+      } else {
+        const parsedBpm = parseInt(bpm);
+        track.bpm = isNaN(parsedBpm) ? null : parsedBpm;
+      }
+
+      if (key !== undefined) track.key = key?.trim() || null;
+      if (genre !== undefined) track.genre = genre?.trim() || 'Riddim';
+
+      if (tags !== undefined) {
+        track.tags = typeof tags === 'string'
+          ? tags.split(',').map(t => t.trim()).filter(Boolean)
+          : (Array.isArray(tags) ? tags : []);
+      }
+
+      if (description !== undefined) track.description = description.trim();
+
+      // Yeni kapak yüklendiyse Cloudinary'e yükle
+      if (req.files?.cover?.[0]) {
+        const coverFile = req.files.cover[0];
+        const coverResult = await cloudinary.uploader.upload(coverFile.path, {
+          resource_type: 'image',
+          folder: 'nammu/covers'
+        });
+        track.coverUrl = coverResult.secure_url;
+        try { fs.unlinkSync(coverFile.path); } catch (e) {}
+      }
+
+      writeTracks(tracks);
+
+      // Cloudinary bulut veritabanını güncelle
+      cloudinary.uploader.upload(DATA_FILE, {
+        resource_type: 'raw',
+        public_id: 'nammu_tracks_db.json',
+        overwrite: true
+      }).catch(err => console.error('Cloud DB edit sync error:', err.message));
+
+      console.log(`✏️ Parça güncellendi: "${track.title}" (BPM: ${track.bpm || 'Yok'})`);
+      res.json(track);
+    } catch (err) {
+      console.error('Track edit error:', err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
 // PATCH /api/tracks/:id/play → Çalma sayısını artır
 app.patch('/api/tracks/:id/play', (req, res) => {
   const tracks = readTracks();

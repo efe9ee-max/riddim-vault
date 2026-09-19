@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import { useAudio } from '../context/AudioContext'
-import { Play, Pause, Download, Trash2, Music } from 'lucide-react'
+import { Play, Pause, Download, Trash2, Music, Pencil } from 'lucide-react'
 import { TAG_COLORS } from '../data/demoTracks'
+import EditTrackModal from './EditTrackModal'
 import clsx from 'clsx'
 import axios from 'axios'
 import toast from 'react-hot-toast'
@@ -19,8 +20,9 @@ function formatSize(bytes) {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export default function TrackCard({ track, isAdmin, onDelete }) {
+export default function TrackCard({ track, isAdmin, onDelete, onUpdate }) {
   const [imgError, setImgError] = useState(false)
+  const [showEditModal, setShowEditModal] = useState(false)
   const { playTrack, currentTrack, isPlaying } = useAudio()
   const isActive = currentTrack?.id === track.id
   const isCurrentPlaying = isActive && isPlaying
@@ -164,17 +166,39 @@ export default function TrackCard({ track, isAdmin, onDelete }) {
               </button>
             )}
             {isAdmin && !track.isDemo && (
-              <button
-                onClick={handleDelete}
-                title="Sil"
-                className="p-1 text-slate-600 hover:text-danger transition-colors rounded"
-              >
-                <Trash2 size={13} />
-              </button>
+              <>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowEditModal(true)
+                  }}
+                  title="Düzenle (BPM, Tür, Başlık...)"
+                  className="p-1 text-slate-600 hover:text-cyan transition-colors rounded"
+                >
+                  <Pencil size={13} />
+                </button>
+                <button
+                  onClick={handleDelete}
+                  title="Sil"
+                  className="p-1 text-slate-600 hover:text-danger transition-colors rounded"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </>
             )}
           </div>
         </div>
       </div>
+
+      {/* Parça Düzenleme Modalı */}
+      {showEditModal && (
+        <EditTrackModal
+          track={track}
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          onUpdated={onUpdate}
+        />
+      )}
     </div>
   )
 }

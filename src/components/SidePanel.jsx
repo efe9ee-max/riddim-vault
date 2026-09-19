@@ -283,7 +283,6 @@ export default function SidePanel({ side, tracks }) {
       <div className="space-y-2">
         <div className="text-[9px] text-purple/70 font-mono tracking-widest uppercase">STATS</div>
         <Stat icon={<Music size={11}/>}      label="Tracks"  value={tracks.length} />
-        <Stat icon={<TrendingUp size={11}/>} label="Top BPM" value={getTopBpm(tracks)} />
         <Stat icon={<Activity size={11}/>}   label="Plays"   value={tracks.reduce((s,t) => s+(t.plays||0),0)} />
       </div>
 

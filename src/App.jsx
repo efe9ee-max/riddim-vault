@@ -46,6 +46,7 @@ export default function App() {
 
   const handleUploaded = useCallback((t) => setTracks(p => [t, ...p]), [])
   const handleDelete   = useCallback((id) => setTracks(p => p.filter(t => t.id !== id)), [])
+  const handleUpdate   = useCallback((updated) => setTracks(p => p.map(t => t.id === updated.id ? updated : t)), [])
 
   return (
     <div className="min-h-screen bg-void relative overflow-x-hidden">
@@ -117,7 +118,7 @@ export default function App() {
                 ))}
               </div>
             ) : (
-              <TrackGrid tracks={tracks} isAdmin={isAdmin} onDelete={handleDelete} />
+              <TrackGrid tracks={tracks} isAdmin={isAdmin} onDelete={handleDelete} onUpdate={handleUpdate} />
             )}
           </section>
         </main>
